@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#e5322d">
+<title>PDF ke Word</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#e5322d; --red-dark:#c4221d; --blue:#2b579a; --ink:#1f2330; --muted:#6b7080;
+    --bg:#f4f4f8; --card:#fff; --line:#e3e4ea; --ok:#1d9d5b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:"Plus Jakarta Sans",system-ui,-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
+  body{min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+  header{background:#fff;border-bottom:1px solid var(--line);padding:calc(12px + env(safe-area-inset-top)) 20px 12px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+  .logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:19px;letter-spacing:-.3px}
+  .logo .mark{width:30px;height:30px;border-radius:7px;background:var(--red);display:grid;place-items:center;color:#fff;font-size:13px}
+  .logo span b{color:var(--red)}
+  main{max-width:980px;margin:0 auto;padding:36px 18px 60px}
+  .hero{text-align:center;margin-bottom:28px}
+  .hero h1{font-size:clamp(26px,5vw,40px);font-weight:800;letter-spacing:-.8px}
+  .hero p{color:var(--muted);margin-top:10px;font-size:clamp(14px,2.4vw,18px);max-width:640px;margin-inline:auto;line-height:1.5}
+  .drop{border:2px dashed transparent;border-radius:18px;padding:30px 16px;text-align:center;transition:.2s}
+  .drop.over{border-color:var(--red);background:#fff2f1}
+  .btn-pick{display:inline-flex;align-items:center;gap:10px;background:var(--red);color:#fff;border:0;border-radius:14px;padding:22px 44px;font:700 clamp(17px,3vw,22px) inherit;cursor:pointer;box-shadow:0 8px 24px rgba(229,50,45,.3);transition:.15s}
+  .btn-pick:hover{background:var(--red-dark)}
+  .btn-pick:active{transform:scale(.98)}
+  .drop small{display:block;color:var(--muted);margin-top:14px;font-size:14px}
+  .privacy{display:flex;gap:8px;align-items:center;justify-content:center;color:var(--muted);font-size:13px;margin-top:18px;text-align:center}
+  .privacy svg{flex:none}
+
+  #work{display:none}
+  .layout{display:grid;grid-template-columns:1fr 330px;gap:22px;align-items:start}
+  @media (max-width:780px){.layout{grid-template-columns:1fr}}
+  .files{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+  .fcard{background:var(--card);border-radius:14px;padding:12px;box-shadow:0 2px 10px rgba(20,20,40,.06);position:relative;text-align:center}
+  .thumb{height:170px;border-radius:8px;background:#f0f0f4;display:grid;place-items:center;overflow:hidden;margin-bottom:10px}
+  .thumb canvas{max-width:100%;max-height:170px;box-shadow:0 1px 6px rgba(0,0,0,.15);background:#fff}
+  .fname{font-size:13px;font-weight:600;word-break:break-all;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .fmeta{font-size:12px;color:var(--muted);margin-top:4px}
+  .fx{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;border:0;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.18);cursor:pointer;font-size:16px;line-height:28px;color:var(--muted)}
+  .status{margin-top:8px;font-size:12px;font-weight:600;min-height:16px;line-height:1.35}
+  .status.ok{color:var(--ok)} .status.err{color:var(--red)}
+  .bar{height:5px;background:#eee;border-radius:5px;overflow:hidden;margin-top:6px;display:none}
+  .bar i{display:block;height:100%;width:0;background:var(--blue);transition:width .2s}
+  .dl{display:none;margin-top:8px;width:100%;border:0;border-radius:9px;background:var(--blue);color:#fff;font:600 13px inherit;padding:9px;cursor:pointer}
+  .addmore{border:2px dashed var(--line);background:transparent;border-radius:14px;min-height:230px;cursor:pointer;color:var(--muted);font:600 14px inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+  .addmore b{font-size:34px;color:var(--red);line-height:1}
+
+  .side{background:var(--card);border-radius:16px;padding:20px;box-shadow:0 2px 10px rgba(20,20,40,.06);position:sticky;top:80px}
+  .side h2{font-size:20px;font-weight:800;margin-bottom:14px;text-align:center}
+  .opt{border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;display:flex;gap:10px;align-items:flex-start;transition:.15s}
+  .opt input{margin-top:3px;accent-color:var(--red)}
+  .opt.sel{border-color:var(--red);background:#fff6f5}
+  .opt b{display:block;font-size:14px}
+  .opt span{font-size:12.5px;color:var(--muted);line-height:1.4}
+  .sub{border-top:1px solid var(--line);margin-top:6px;padding-top:6px}
+  .chk{display:flex;gap:9px;font-size:13px;color:var(--ink);margin:10px 2px;align-items:flex-start;line-height:1.4;cursor:pointer}
+  .chk input{margin-top:2px;accent-color:var(--red);flex:none}
+  .chk small{display:block;color:var(--muted);font-size:12px}
+  .sel-lang{margin:2px 0 6px 26px;width:calc(100% - 26px);padding:8px 10px;border-radius:9px;border:1.5px solid var(--line);font:13px inherit;background:#fff}
+  .btn-go{width:100%;border:0;border-radius:12px;background:var(--red);color:#fff;font:700 18px inherit;padding:16px;cursor:pointer;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px}
+  .btn-go:disabled{opacity:.6;cursor:default}
+  .btn-all{width:100%;border:0;border-radius:12px;background:var(--blue);color:#fff;font:700 15px inherit;padding:13px;cursor:pointer;margin-top:10px;display:none}
+  .note{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.45;text-align:center}
+
+  .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:46px}
+  .feat div{background:#fff;border-radius:14px;padding:18px}
+  .feat h3{font-size:15px;margin-bottom:6px}
+  .feat p{font-size:13px;color:var(--muted);line-height:1.5}
+
+  .modal{position:fixed;inset:0;background:rgba(20,20,35,.5);display:none;place-items:center;z-index:50;padding:20px}
+  .modal.show{display:grid}
+  .modal .box{background:#fff;border-radius:16px;padding:22px;max-width:360px;width:100%}
+  .modal h3{font-size:17px;margin-bottom:6px}
+  .modal p{font-size:13px;color:var(--muted);margin-bottom:12px;word-break:break-all}
+  .modal input{width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;font:15px inherit}
+  .modal .row{display:flex;gap:8px;margin-top:14px}
+  .modal button{flex:1;padding:12px;border-radius:10px;border:0;font:600 14px inherit;cursor:pointer}
+  .modal .pri{background:var(--red);color:#fff}
+  .modal .sec{background:#eee}
+  .spin{width:18px;height:18px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp 0.8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="mark">PDF</div><span>PDF<b>ke</b>Word</span></div>
+</header>
+
+<main>
+  <section id="start">
+    <div class="hero">
+      <h1>Konversi PDF ke WORD</h1>
+      <p>Ubah PDF menjadi dokumen Word (.docx) yang bisa diedit, dengan tata letak, tabel, warna, dan gambar seperti aslinya. PDF hasil scan dibaca dengan OCR.</p>
+    </div>
+    <div class="drop" id="drop">
+      <button class="btn-pick" id="pick">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Pilih file PDF
+      </button>
+      <small>atau seret &amp; letakkan file PDF di sini</small>
+    </div>
+    <div class="privacy">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      File diproses langsung di perangkat Anda — tidak pernah dikirim ke server.
+    </div>
+    <div class="feat">
+      <div><h3>📐 Tata letak persis</h3><p>Posisi teks, baris, ukuran &amp; warna huruf, gambar, logo, dan garis ditempatkan di tempat yang sama seperti di PDF.</p></div>
+      <div><h3>▦ Tabel jadi tabel</h3><p>Tabel bergaris diubah menjadi tabel Word asli, lengkap dengan sel gabungan, garis, dan warna latar sel.</p></div>
+      <div><h3>🔍 OCR untuk scan</h3><p>Halaman hasil scan/foto dibaca dengan OCR (Indonesia &amp; Inggris) sehingga teksnya bisa diedit.</p></div>
+      <div><h3>📱 Jalan di iPhone</h3><p>Bekerja di Safari, Chrome, dan komputer. Bisa beberapa file sekaligus.</p></div>
+    </div>
+  </section>
+
+  <section id="work">
+    <div class="layout">
+      <div class="files" id="files"></div>
+      <aside class="side">
+        <h2>PDF ke WORD</h2>
+        <label class="opt sel" data-mode="text">
+          <input type="radio" name="mode" value="text" checked>
+          <div><b>Bisa diedit (disarankan)</b><span>Teks &amp; tabel bisa diedit, tampilan dibuat semirip mungkin dengan PDF.</span></div>
+        </label>
+        <div id="textOpts">
+          <label class="chk"><input type="checkbox" id="optOcr" checked><div>OCR untuk halaman hasil scan<small>Teks pada gambar/scan dibaca otomatis</small></div></label>
+          <select id="ocrLang" class="sel-lang">
+            <option value="ind+eng">Bahasa Indonesia + Inggris</option>
+            <option value="ind">Bahasa Indonesia</option>
+            <option value="eng">Bahasa Inggris</option>
+          </select>
+          <select id="ocrFont" class="sel-lang" title="Jenis huruf untuk teks hasil OCR">
+            <option value="Times New Roman">Huruf hasil OCR: Times New Roman</option>
+            <option value="Arial">Huruf hasil OCR: Arial</option>
+            <option value="Calibri">Huruf hasil OCR: Calibri</option>
+          </select>
+          <label class="chk"><input type="checkbox" id="optTable" checked><div>Ubah tabel menjadi tabel Word<small>Untuk tabel yang memiliki garis</small></div></label>
+          <label class="chk"><input type="checkbox" id="optExact" checked><div>Pertahankan baris &amp; posisi persis<small>Matikan bila ingin paragraf yang mengalir bebas</small></div></label>
+        </div>
+        <label class="opt" data-mode="image">
+          <input type="radio" name="mode" value="image">
+          <div><b>Gambar persis seperti asli</b><span>Setiap halaman jadi gambar di Word. Tampilan 100% sama, tapi teks tidak bisa diedit.</span></div>
+        </label>
+        <button class="btn-go" id="go">Konversi ke WORD
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+        <button class="btn-all" id="dlAll">Unduh semua (.zip)</button>
+        <p class="note">OCR pertama kali butuh internet untuk mengunduh data bahasa (±5–15 MB), lalu halaman diproses beberapa detik per halaman.</p>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="pwModal">
+  <div class="box">
+    <h3>PDF dikunci kata sandi</h3>
+    <p id="pwName"></p>
+    <input type="password" id="pwInput" placeholder="Masukkan kata sandi" autocomplete="off">
+    <div class="row"><button class="sec" id="pwCancel">Lewati</button><button class="pri" id="pwOk">Buka</button></div>
+  </div>
+</div>
+
+<input type="file" id="fileIn" accept="application/pdf,.pdf" multiple hidden>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+
+/* =====================================================================
+   UI
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const items = [];
+let uid = 0, busy = false;
+
+const fileIn = $("#fileIn");
+$("#pick").onclick = () => fileIn.click();
+fileIn.onchange = () => { addFiles(fileIn.files); fileIn.value = ""; };
+
+const drop = $("#drop");
+["dragenter","dragover"].forEach(e => document.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add("over"); }));
+document.addEventListener("dragleave", ev => { if (!ev.relatedTarget) drop.classList.remove("over"); });
+document.addEventListener("drop", ev => { ev.preventDefault(); drop.classList.remove("over"); if (!busy && ev.dataTransfer?.files?.length) addFiles(ev.dataTransfer.files); });
+
+document.querySelectorAll(".opt").forEach(o => o.addEventListener("click", () => {
+  document.querySelectorAll(".opt").forEach(x => x.classList.toggle("sel", x === o));
+  o.querySelector("input").checked = true;
+  $("#textOpts").style.display = o.dataset.mode === "text" ? "block" : "none";
+}));
+$("#optOcr").onchange = () => { const d = $("#optOcr").checked ? "block" : "none"; $("#ocrLang").style.display = d; $("#ocrFont").style.display = d; };
+
+function fmtSize(b){ return b > 1048576 ? (b/1048576).toFixed(1)+" MB" : Math.max(1,Math.round(b/1024))+" KB"; }
+
+function addFiles(list){
+  const pdfs = [...list].filter(f => f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+  if (!pdfs.length) return;
+  $("#start").style.display = "none";
+  $("#work").style.display = "block";
+  for (const file of pdfs){
+    const it = { id: ++uid, file, result: null, password: null };
+    const el = document.createElement("div");
+    el.className = "fcard";
+    el.innerHTML = `<button class="fx" title="Hapus">×</button>
+      <div class="thumb"><span style="color:#aaa;font-size:12px">memuat…</span></div>
+      <div class="fname"></div><div class="fmeta">${fmtSize(file.size)}</div>
+      <div class="bar"><i></i></div><div class="status"></div>
+      <button class="dl">⬇ Unduh Word</button>`;
+    el.querySelector(".fname").textContent = file.name;
+    el.querySelector(".fx").onclick = () => { if (busy) return; items.splice(items.indexOf(it),1); el.remove(); if(!items.length) location.reload(); };
+    el.querySelector(".dl").onclick = () => it.result && download(it.result.blob, it.result.name);
+    it.el = el;
+    items.push(it);
+    $("#files").insertBefore(el, $("#addMore"));
+    thumb(it);
+  }
+  if (!$("#addMore")){
+    const b = document.createElement("button");
+    b.id = "addMore"; b.className = "addmore"; b.innerHTML = "<b>+</b>Tambah PDF";
+    b.onclick = () => { if (!busy) fileIn.click(); };
+    $("#files").appendChild(b);
+  }
+}
+
+async function openPdf(it){
+  const data = new Uint8Array(await it.file.arrayBuffer());
+  while (true){
+    try {
+      const task = pdfjsLib.getDocument({ data: data.slice(), password: it.password || undefined });
+      const pdf = await task.promise;
+      pdf.__close = () => { try { (pdf.destroy ? pdf.destroy() : task.destroy()); } catch(e){ try { task.destroy(); } catch(_){} } };
+      return pdf;
+    } catch (e){
+      if (e && e.name === "PasswordException"){
+        const pw = await askPassword(it.file.name, e.code === 2);
+        if (pw == null) throw new Error("Dilewati (perlu kata sandi)");
+        it.password = pw;
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+
+async function thumb(it){
+  const box = it.el.querySelector(".thumb");
+  try {
+    const pdf = await openPdf(it);
+    it.el.querySelector(".fmeta").textContent = `${fmtSize(it.file.size)} · ${pdf.numPages} hlm`;
+    const page = await pdf.getPage(1);
+    const v1 = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: 340 / v1.height });
+    const c = document.createElement("canvas");
+    c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext("2d"), canvas: c, viewport: vp }).promise;
+    box.innerHTML = ""; box.appendChild(c);
+    pdf.__close();
+  } catch (e){
+    box.innerHTML = '<span style="color:#c00;font-size:12px;padding:8px">Tidak bisa dibuka</span>';
+    setStatus(it, e.message || "File rusak", "err");
+    it.bad = true;
+  }
+}
+
+function askPassword(name, wrong){
+  return new Promise(res => {
+    $("#pwName").textContent = (wrong ? "Kata sandi salah. " : "") + name;
+    $("#pwInput").value = "";
+    $("#pwModal").classList.add("show");
+    setTimeout(() => $("#pwInput").focus(), 50);
+    const done = v => { $("#pwModal").classList.remove("show"); $("#pwOk").onclick = $("#pwCancel").onclick = $("#pwInput").onkeydown = null; res(v); };
+    $("#pwOk").onclick = () => done($("#pwInput").value);
+    $("#pwCancel").onclick = () => done(null);
+    $("#pwInput").onkeydown = e => { if (e.key === "Enter") done($("#pwInput").value); };
+  });
+}
+
+function setStatus(it, txt, cls){ const s = it.el.querySelector(".status"); s.textContent = txt; s.className = "status " + (cls||""); }
+function setProg(it, p){ const b = it.el.querySelector(".bar"); b.style.display = p == null ? "none" : "block"; b.firstElementChild.style.width = (p*100)+"%"; }
+
+function download(blob, name){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function getOpts(){
+  return {
+    mode: document.querySelector('input[name="mode"]:checked').value,
+    ocr: $("#optOcr").checked,
+    lang: $("#ocrLang").value,
+    ocrFont: $("#ocrFont").value,
+    tables: $("#optTable").checked,
+    exact: $("#optExact").checked,
+  };
+}
+
+$("#go").onclick = async () => {
+  if (busy) return;
+  busy = true;
+  const go = $("#go"); const label = go.innerHTML;
+  go.disabled = true; go.innerHTML = '<div class="spin"></div> Mengonversi…';
+  const opts = getOpts();
+  let okCount = 0;
+  for (const it of items){
+    if (it.bad) continue;
+    it.el.querySelector(".dl").style.display = "none";
+    setStatus(it, "Memproses…");
+    setProg(it, 0);
+    try {
+      const blob = await convert(it, opts, (p, msg) => { setProg(it, p); if (msg) setStatus(it, msg); });
+      it.result = { blob, name: it.file.name.replace(/\.pdf$/i, "") + ".docx" };
+      setStatus(it, "✓ Selesai · " + fmtSize(blob.size), "ok");
+      it.el.querySelector(".dl").style.display = "block";
+      okCount++;
+    } catch (e){
+      console.error(e);
+      setStatus(it, "Gagal: " + (e.message || e), "err");
+    }
+    setProg(it, null);
+  }
+  go.disabled = false; go.innerHTML = label; busy = false;
+  const done = items.filter(i => i.result);
+  $("#dlAll").style.display = done.length > 1 ? "block" : "none";
+  if (done.length === 1 && okCount === 1) download(done[0].result.blob, done[0].result.name);
+};
+
+$("#dlAll").onclick = async () => {
+  const z = new JSZip(); const used = {};
+  for (const it of items) if (it.result){
+    let n = it.result.name; if (used[n]) n = n.replace(/\.docx$/, ` (${++used[n]}).docx`); else used[n] = 1;
+    z.file(n, it.result.blob);
+  }
+  download(await z.generateAsync({ type: "blob" }), "pdf-ke-word.zip");
+};
+
+/* =====================================================================
+   KONVERSI: alur utama
+   ===================================================================== */
+const S_VEC = 2;   // skala render untuk PDF digital (px per pt)
+const S_OCR = 3;   // skala render untuk OCR
+const tick = () => new Promise(r => setTimeout(r, 0));
+
+async function convert(it, opts, onProg){
+  const pdf = await openPdf(it);
+  const N = pdf.numPages;
+  const pages = [];
+  let ocr = null;
+  try {
+    for (let i = 1; i <= N; i++){
+      const base = (i - 1) / N * 0.92, span = 0.92 / N;
+      onProg(base, `Halaman ${i}/${N}…`);
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({ scale: 1 });
+      let pg;
+      if (opts.mode === "image"){
+        pg = await fullPageImage(page, vp);
+      } else {
+        const items = await extractItems(page, vp);
+        const chars = items.reduce((a, b) => a + b.str.trim().length, 0);
+        if (chars >= 15){
+          pg = await analyzeVector(page, vp, items, opts);
+        } else if (opts.ocr){
+          if (!ocr){ onProg(base, "Menyiapkan OCR…"); ocr = await createOcr(opts.lang); }
+          ocr.onProgress = p => onProg(base + span * p * 0.9, `Halaman ${i}/${N} · OCR ${Math.round(p*100)}%`);
+          pg = await analyzeScan(page, vp, ocr, opts);
+        } else {
+          pg = await fullPageImage(page, vp);
+        }
+      }
+      pages.push(pg);
+      page.cleanup();
+      await tick();
+    }
+  } finally {
+    if (ocr) try { await ocr.worker.terminate(); } catch(e){}
+    pdf.__close();
+  }
+  window.__lastPages = pages;
+  onProg(0.95, "Menyusun dokumen Word…");
+  const blob = await buildDocx(pages, opts);
+  onProg(1);
+  return blob;
+}
+
+/* ---------- render ---------- */
+async function renderCanvas(page, scale, noText){
+  const v1 = page.getViewport({ scale: 1 });
+  const k = Math.min(1, 4200 / Math.max(v1.width * scale, v1.height * scale)); // batas aman iPhone
+  const v = page.getViewport({ scale: scale * k });
+  const c = document.createElement("canvas");
+  c.width = Math.round(v.width); c.height = Math.round(v.height);
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+  const P = CanvasRenderingContext2D.prototype;
+  const f1 = P.fillText, f2 = P.strokeText;
+  if (noText){ P.fillText = function(){}; P.strokeText = function(){}; }
+  try { await page.render({ canvasContext: ctx, canvas: c, viewport: v }).promise; }
+  finally { P.fillText = f1; P.strokeText = f2; }
+  return { canvas: c, s: c.width / v1.width };
+}
+
+function canvasBlob(c, type, q){ return new Promise(r => c.toBlob(r, type, q)); }
+
+async function fullPageImage(page, vp){
+  const { canvas } = await renderCanvas(page, 2, false);
+  const blob = await canvasBlob(canvas, "image/jpeg", 0.9);
+  canvas.width = canvas.height = 0;
+  return { W: vp.width, H: vp.height, lines: [], tables: [],
+    images: [{ data: new Uint8Array(await blob.arrayBuffer()), ext: "jpeg", x: 0, y: 0, w: vp.width, h: vp.height }] };
+}
+
+/* ---------- teks dari PDF digital ---------- */
+function fontInfo(page, fontName, styles){
+  let raw = "";
+  try { const f = page.commonObjs.get(fontName); raw = (f && (f.name || f.loadedName)) || ""; } catch(e){}
+  const st = styles[fontName] || {};
+  const fam = st.fontFamily || "";
+  const s = raw.replace(/^[A-Z]{6}\+/, "");
+  const low = (s + " " + fam).toLowerCase();
+  const bold = /bold|black|heavy|semibold|demi|w[6-9]\b/.test(low);
+  const italic = /italic|oblique|\bit\b/.test(low);
+  let family = "Calibri";
+  if (/courier|mono|consol/.test(low)) family = /consol/.test(low) ? "Consolas" : "Courier New";
+  else if (/arial|helvetica|liberationsans|arimo/.test(low)) family = "Arial";
+  else if (/calibri|carlito/.test(low)) family = "Calibri";
+  else if (/cambria|caladea/.test(low)) family = "Cambria";
+  else if (/georgia/.test(low)) family = "Georgia";
+  else if (/garamond/.test(low)) family = "Garamond";
+  else if (/bookman/.test(low)) family = "Bookman Old Style";
+  else if (/century/.test(low)) family = "Century Gothic";
+  else if (/verdana/.test(low)) family = "Verdana";
+  else if (/tahoma/.test(low)) family = "Tahoma";
+  else if (/trebuchet/.test(low)) family = "Trebuchet MS";
+  else if (/segoe/.test(low)) family = "Segoe UI";
+  else if (/roboto/.test(low)) family = "Roboto";
+  else if (/open ?sans|opensans/.test(low)) family = "Open Sans";
+  else if (/times|tinos|liberationserif|nimbusrom/.test(low)) family = "Times New Roman";
+  else if (/symbol/.test(low)) family = "Symbol";
+  else {
+    const clean = s.split(/[-,]/)[0].replace(/(MT|PS|Std|Pro|LT)$/,"").replace(/([a-z])([A-Z])/g, "$1 $2").trim();
+    if (/^[A-Za-z ]{3,30}$/.test(clean)) family = clean;
+    else if (/serif/.test(fam) && !/sans/.test(fam)) family = "Times New Roman";
+  }
+  return { bold, italic, family };
+}
+
+async function extractItems(page, vp){
+  try { await page.getOperatorList(); } catch(e){} // memuat font agar namanya terbaca
+  const tc = await page.getTextContent();
+  const H = vp.height;
+  const fcache = {};
+  const out = [];
+  const [a, b, c, d, e, f] = vp.transform; // viewport (skala 1) – menangani halaman yang diputar
+  for (const t of tc.items){
+    if (!t.str || !t.str.trim().length) continue;
+    const tr = t.transform;
+    // gabungkan dengan transform viewport
+    const m0 = a*tr[0] + c*tr[1], m1 = b*tr[0] + d*tr[1];
+    const m2 = a*tr[2] + c*tr[3], m3 = b*tr[2] + d*tr[3];
+    const px = a*tr[4] + c*tr[5] + e, py = b*tr[4] + d*tr[5] + f;
+    const size = Math.hypot(m2, m3) || 10;
+    if (Math.abs(m1) > 0.25 * Math.abs(m0) + 0.01) continue; // teks miring/vertikal dilewati
+    const fi = fcache[t.fontName] || (fcache[t.fontName] = fontInfo(page, t.fontName, tc.styles));
+    const scaleX = Math.hypot(m0, m1) / Math.hypot(tr[0], tr[1] || 0) || 1;
+    out.push({ str: t.str, x: px, y: py, size, w: (t.width || t.str.length * size * 0.5) * scaleX, ...fi });
+  }
+  return out;
+}
+
+/* ---------- analisis halaman PDF digital ---------- */
+async function analyzeVector(page, vp, items, opts){
+  const W = vp.width, H = vp.height;
+  const full = await renderCanvas(page, S_VEC, false);
+  const gfx = await renderCanvas(page, S_VEC, true);   // semua kecuali teks
+  const s = full.s;
+  const nd = full.canvas.getContext("2d").getImageData(0, 0, full.canvas.width, full.canvas.height);
+  const gd = gfx.canvas.getContext("2d").getImageData(0, 0, gfx.canvas.width, gfx.canvas.height);
+  full.canvas.width = full.canvas.height = 0;
+  const res = await analyzeCommon({ W, H, s, items, nd, gd, gCanvas: gfx.canvas, opts, scan: false });
+  gfx.canvas.width = gfx.canvas.height = 0;
+  return res;
+}
+
+/* ---------- OCR ---------- */
+function loadScript(src){
+  return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("Gagal memuat OCR (cek internet)")); document.head.appendChild(s); });
+}
+async function createOcr(lang){
+  if (window.__ocrFactory) return window.__ocrFactory(lang); // dipakai untuk pengujian
+  if (!window.Tesseract) await loadScript(TESSERACT_URL);
+  const holder = { onProgress: null };
+  holder.worker = await Tesseract.createWorker(lang, 1, {
+    logger: m => { if (m.status === "recognizing text" && holder.onProgress) holder.onProgress(m.progress || 0); }
+  });
+  holder.recognize = async (canvas, rect) => (await holder.worker.recognize(canvas, rect ? { rectangle: rect } : {}, { blocks: true, text: false })).data;
+  holder.setPsm = async m => { try { await holder.worker.setParameters({ tessedit_pageseg_mode: String(m) }); } catch(e){} };
+  return holder;
+}
+
+function ocrWords(data, s, minConf){
+  const out = [];
+  for (const b of (data.blocks || [])) for (const p of (b.paragraphs || [])){
+    const pl = [];
+    for (const l of (p.lines || [])){
+      const words = (l.words || []).filter(w => w.text && w.text.trim() && w.confidence >= minConf);
+      if (!words.length) continue;
+      const bl = l.baseline;
+      const hasBl = bl && bl.has_baseline !== false && bl.x1 > bl.x0;
+      const baseAt = x => hasBl ? bl.y0 + (bl.y1 - bl.y0) * ((x - bl.x0) / (bl.x1 - bl.x0)) : l.bbox.y1 - (l.bbox.y1 - l.bbox.y0) * 0.22;
+      const asc = Math.max(4, baseAt((l.bbox.x0 + l.bbox.x1) / 2) - l.bbox.y0);
+      pl.push({ words, baseAt, size: asc / 0.72 / s });
+    }
+    if (!pl.length) continue;
+    const sizes = pl.map(x => x.size).sort((a, b) => a - b);
+    const med = Math.max(5, Math.round(sizes[sizes.length >> 1] * 2) / 2);
+    for (const L of pl) for (const w of L.words){
+      const wx = (w.bbox.x0 + w.bbox.x1) / 2;
+      out.push({ str: w.text, x: w.bbox.x0 / s, y: L.baseAt(wx) / s, size: med, w: (w.bbox.x1 - w.bbox.x0) / s,
+        bold: !!w.is_bold, italic: !!w.is_italic, bbox: w.bbox });
+    }
+  }
+  return out;
+}
+
+function paperColor(nd){
+  const A = nd.data, hist = new Map(), n = nd.width * nd.height, step = Math.max(1, Math.floor(n / 40000));
+  for (let p = 0; p < n; p += step){
+    const i = p * 4, key = (A[i] >> 3) << 10 | (A[i+1] >> 3) << 5 | (A[i+2] >> 3);
+    const e = hist.get(key) || [0, 0, 0, 0]; e[0]++; e[1] += A[i]; e[2] += A[i+1]; e[3] += A[i+2]; hist.set(key, e);
+  }
+  let best = null; for (const e of hist.values()) if (!best || e[0] > best[0]) best = e;
+  return [best[1] / best[0], best[2] / best[0], best[3] / best[0]];
+}
+
+async function analyzeScan(page, vp, ocr, opts){
+  const W = vp.width, H = vp.height;
+  const full = await renderCanvas(page, S_OCR, false);
+  const s = full.s;
+  const cv = full.canvas;
+  if (ocr.setPsm) await ocr.setPsm(3);
+  const items = ocrWords(await ocr.recognize(cv), s, 25);
+  const nd = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height);
+  const paper = paperColor(nd);
+
+  const clean = document.createElement("canvas");
+  clean.width = cv.width; clean.height = cv.height;
+  const cctx = clean.getContext("2d", { willReadFrequently: true });
+  cctx.drawImage(cv, 0, 0);
+  const erase = list => { for (const it of list){ const bb = it.bbox; cctx.fillStyle = ringColor(nd, bb.x0, bb.y0, bb.x1, bb.y1, 3); cctx.fillRect(bb.x0 - 2, bb.y0 - 2, bb.x1 - bb.x0 + 4, bb.y1 - bb.y0 + 4); } };
+  erase(items);
+  let gd = cctx.getImageData(0, 0, clean.width, clean.height);
+
+  // tabel dulu, lalu sel yang belum terbaca di-OCR satu per satu
+  let tables = opts.tables ? detectTables(gd, s, W, H, true) : [];
+  if (tables.length){
+    const inT = it => { const cx = it.x + it.w / 2, cy = it.y - it.size * 0.3; return tables.some(t => cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1); };
+    const filled = new Set();
+    for (const it of items) if (inT(it)) for (const t of tables){
+      const cx = it.x + it.w / 2, cy = it.y - it.size * 0.3;
+      if (cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1) filled.add(t.groups[t.cellG[idxIn(t.ys, cy) * t.C + idxIn(t.xs, cx)]]);
+    }
+    if (ocr.setPsm) await ocr.setPsm(6);
+    const extra = [];
+    for (const t of tables) for (const g of t.groups){
+      if (filled.has(g)) continue;
+      const pad = 2.5 * s;
+      const left = Math.round(t.xs[g.c0] * s + pad), top = Math.round(t.ys[g.r0] * s + pad);
+      const width = Math.round((t.xs[g.c1 + 1] - t.xs[g.c0]) * s - 2 * pad), height = Math.round((t.ys[g.r1 + 1] - t.ys[g.r0]) * s - 2 * pad);
+      if (width < 6 || height < 6) continue;
+      // lewati sel kosong (tanpa tinta)
+      let ink = 0;
+      for (let y = top; y < top + height; y += 2) for (let x = left; x < left + width; x += 2){ const i = (y * gd.width + x) * 4; if (gd.data[i] + gd.data[i+1] + gd.data[i+2] < (paper[0] + paper[1] + paper[2]) - 180) ink++; }
+      if (ink < 3) continue;
+      try { extra.push(...ocrWords(await ocr.recognize(cv, { left, top, width, height }), s, 15)); } catch(e){ console.warn(e); }
+    }
+    if (ocr.setPsm) await ocr.setPsm(3);
+    if (extra.length){ items.push(...extra); erase(extra); gd = cctx.getImageData(0, 0, clean.width, clean.height); }
+  }
+
+  // tebal/normal dari kepadatan tinta tiap kata
+  const lumPaper = (paper[0] + paper[1] + paper[2]) / 3;
+  for (const it of items){
+    const bb = it.bbox; let dark = 0, tot = 0;
+    for (let y = bb.y0; y < bb.y1; y += 1) for (let x = bb.x0; x < bb.x1; x += 1){
+      const i = (y * nd.width + x) * 4; tot++;
+      if ((nd.data[i] + nd.data[i+1] + nd.data[i+2]) / 3 < lumPaper - 90) dark++;
+    }
+    it.density = tot ? dark / tot / Math.max(1, (bb.y1 - bb.y0) / s / it.size) : 0;
+  }
+  const dens = items.map(i => i.density).sort((a, b) => a - b), medD = dens[dens.length >> 1] || 0;
+  for (const it of items){ if (it.density > medD * 1.3) it.bold = true; it.family = opts.ocrFont || "Times New Roman"; }
+  // seragamkan ukuran huruf hasil OCR (perkiraan per kata/sel sedikit berbeda-beda)
+  const inTable = it => { const cx = it.x + it.w / 2, cy = it.y - it.size * 0.3; return tables.find(t => cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1); };
+  const norm = (list, tol) => { if (!list.length) return; const m = median(list.map(i => i.size)); for (const i of list) if (Math.abs(i.size - m) / m < tol) i.size = m; };
+  norm(items.filter(i => !inTable(i)), 0.12);
+  for (const t of tables) norm(items.filter(i => inTable(i) === t), 0.35);
+
+  cv.width = cv.height = 0;
+  const res = await analyzeCommon({ W, H, s, items, nd, gd, gCanvas: clean, opts, scan: true, tables, paper });
+  clean.width = clean.height = 0;
+  return res;
+}
+
+/* ---------- bersama: warna, tabel, gambar, baris ---------- */
+async function analyzeCommon({ W, H, s, items, nd, gd, gCanvas, opts, scan, tables: preT, paper }){
+  for (const it of items) it.color = textColor(nd, gd, it, s);
+
+  let tables = preT || (opts.tables ? detectTables(gd, s, W, H, scan) : []);
+  detectUnderlines(items, gd, gCanvas, s, tables);
+  const flow = [];
+  for (const it of items){
+    const cx = it.x + it.w / 2, cy = it.y - it.size * 0.3;
+    const t = tables.find(t => cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1);
+    if (!t){ flow.push(it); continue; }
+    const r = idxIn(t.ys, cy), c = idxIn(t.xs, cx);
+    t.groups[t.cellG[r * t.C + c]].items.push(it);
+    t.hasText = true;
+  }
+  // kotak 1 sel tanpa isi bukan tabel → biarkan jadi grafis
+  tables = tables.filter(t => t.hasText || t.R * t.C > 1);
+  for (const t of tables){
+    for (const g of t.groups){
+      g.lines = buildLines(g.items);
+      g.fill = cellFill(gd, t.xs[g.c0] * s, t.ys[g.r0] * s, t.xs[g.c1 + 1] * s, t.ys[g.r1 + 1] * s, s);
+    }
+  }
+  const images = await findGraphics(gd, gCanvas, s, W, H, tables, scan, paper);
+  return { W, H, lines: buildLines(flow), tables, images };
+}
+
+function idxIn(arr, v){ for (let i = 0; i < arr.length - 1; i++) if (v < arr[i + 1]) return i; return arr.length - 2; }
+const hex2 = n => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0").toUpperCase();
+const toHex = (r, g, b) => hex2(r) + hex2(g) + hex2(b);
+
+function textColor(nd, gd, it, s){
+  const w = nd.width, h = nd.height, A = nd.data, B = gd.data;
+  const x0 = Math.max(0, Math.floor(it.x * s)), x1 = Math.min(w - 1, Math.ceil((it.x + it.w) * s));
+  const y0 = Math.max(0, Math.floor((it.y - it.size * 0.8) * s)), y1 = Math.min(h - 1, Math.ceil((it.y + it.size * 0.1) * s));
+  if (x1 <= x0 || y1 <= y0) return null;
+  const step = Math.max(1, Math.floor(Math.sqrt((x1 - x0) * (y1 - y0) / 900)));
+  let best = [];
+  for (let y = y0; y <= y1; y += step) for (let x = x0; x <= x1; x += step){
+    const i = (y * w + x) * 4;
+    const df = Math.abs(A[i] - B[i]) + Math.abs(A[i+1] - B[i+1]) + Math.abs(A[i+2] - B[i+2]);
+    if (df > 120) best.push([df, A[i], A[i+1], A[i+2]]);
+  }
+  if (best.length < 2) return null;
+  best.sort((p, q) => q[0] - p[0]);
+  best = best.slice(0, Math.max(2, Math.ceil(best.length * 0.4)));
+  let r = 0, g = 0, b = 0;
+  for (const p of best){ r += p[1]; g += p[2]; b += p[3]; }
+  r /= best.length; g /= best.length; b /= best.length;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+  if (mx < 85 && mx - mn < 30) return null; // hitam → otomatis
+  return toHex(r, g, b);
+}
+
+function ringColor(d, x0, y0, x1, y1, pad){
+  const w = d.width, h = d.height, A = d.data, hist = new Map();
+  const add = (x, y) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return;
+    const i = (y * w + x) * 4, key = (A[i] >> 4) << 8 | (A[i+1] >> 4) << 4 | (A[i+2] >> 4);
+    const e = hist.get(key) || [0, 0, 0, 0]; e[0]++; e[1] += A[i]; e[2] += A[i+1]; e[3] += A[i+2]; hist.set(key, e);
+  };
+  x0 = Math.round(x0 - pad); x1 = Math.round(x1 + pad); y0 = Math.round(y0 - pad); y1 = Math.round(y1 + pad);
+  for (let x = x0; x <= x1; x += 2){ add(x, y0); add(x, y1); }
+  for (let y = y0; y <= y1; y += 2){ add(x0, y); add(x1, y); }
+  let best = null; for (const e of hist.values()) if (!best || e[0] > best[0]) best = e;
+  if (!best) return "#fff";
+  return "#" + toHex(best[1] / best[0], best[2] / best[0], best[3] / best[0]);
+}
+
+function cellFill(gd, x0, y0, x1, y1, s){
+  const w = gd.width, A = gd.data, pad = 2.5 * s, hist = new Map();
+  x0 = Math.round(x0 + pad); x1 = Math.round(x1 - pad); y0 = Math.round(y0 + pad); y1 = Math.round(y1 - pad);
+  if (x1 <= x0 || y1 <= y0) return null;
+  const step = Math.max(1, Math.floor(Math.sqrt((x1 - x0) * (y1 - y0) / 1500)));
+  for (let y = y0; y <= y1; y += step) for (let x = x0; x <= x1; x += step){
+    const i = (y * w + x) * 4, key = (A[i] >> 4) << 8 | (A[i+1] >> 4) << 4 | (A[i+2] >> 4);
+    const e = hist.get(key) || [0, 0, 0, 0]; e[0]++; e[1] += A[i]; e[2] += A[i+1]; e[3] += A[i+2]; hist.set(key, e);
+  }
+  let best = null; for (const e of hist.values()) if (!best || e[0] > best[0]) best = e;
+  if (!best) return null;
+  const r = best[1] / best[0], g = best[2] / best[0], b = best[3] / best[0];
+  if (r > 243 && g > 243 && b > 243) return null;
+  return toHex(r, g, b);
+}
+
+/* ---------- garis bawah & coret: jadikan format huruf, bukan gambar ---------- */
+function detectUnderlines(items, gd, gCanvas, s, tables){
+  if (!items.length) return;
+  const w = gd.width, h = gd.height, D = gd.data;
+  const lum = new Uint8Array(w * h);
+  for (let i = 0, j = 0; i < lum.length; i++, j += 4) lum[i] = (D[j] * 77 + D[j+1] * 150 + D[j+2] * 29) >> 8;
+  const k = Math.round(2 * s) + 1, C = 35, mh = new Uint8Array(w * h);
+  for (let y = k; y < h - k; y++) for (let x = 0; x < w; x++){
+    const i = y * w + x, v = lum[i];
+    if (v < 235 && v + C < lum[i - k * w] && v + C < lum[i + k * w]) mh[i] = 1;
+  }
+  const lines = mergeSegs(segs(mh, w, h, true, Math.max(3, 2 * s), Math.round(s)), 2.6 * s);
+  let changed = false;
+  for (const L of lines){
+    const ly = L.pos / s, lx0 = L.b0 / s, lx1 = (L.b1 + 1) / s;
+    // garis batas tabel bukan garis bawah
+    if (tables && tables.some(t => lx1 > t.x0 - 2 && lx0 < t.x1 + 2 && t.ys.some(y => Math.abs(y - ly) < 2.5))) continue;
+    // garis yang tidak "tertutup" teks secara rapat juga bukan garis bawah
+    {
+      const near = items.filter(it => { const d = ly - it.y; return d > -0.5 * it.size && d < 0.4 * it.size && it.x < lx1 && it.x + it.w > lx0; })
+        .map(it => [Math.max(lx0, it.x), Math.min(lx1, it.x + it.w), it.size]).sort((a, b) => a[0] - b[0]);
+      if (!near.length) continue;
+      let cov = 0, end = -Infinity, maxGap = 0;
+      for (const [a, b, sz] of near){
+        if (end > -Infinity && a - end > maxGap) maxGap = a - end;
+        cov += Math.max(0, b - Math.max(a, end)); end = Math.max(end, b);
+      }
+      const sz = Math.min(...near.map(n => n[2]));
+      if (cov / (lx1 - lx0) < 0.75 || maxGap > sz * 1.2) continue;
+    }
+    const hits = [];
+    for (let n = 0; n < items.length; n++){
+      let it = items[n];
+      const d0 = ly - it.y;
+      if (d0 < -0.5 * it.size || d0 > 0.4 * it.size) continue;
+      let ov = Math.min(lx1, it.x + it.w) - Math.max(lx0, it.x);
+      if (ov < Math.min(2, it.w * 0.5)) continue;
+      if (ov < it.w * 0.85){
+        // garis hanya menutupi sebagian teks → pecah teksnya
+        const parts = splitItem(it, lx0, lx1);
+        if (parts.length < 2) { if (ov < it.w * 0.5) continue; }
+        else {
+          items.splice(n, 1, ...parts);
+          n += parts.length - 1;
+          it = parts.find(p => p.__mid);
+          if (!it) continue;
+          delete it.__mid;
+        }
+      }
+      const d = ly - it.y;
+      if (d > -0.06 * it.size && d < 0.4 * it.size) hits.push([it, "u"]);
+      else if (d < -0.15 * it.size && d > -0.5 * it.size) hits.push([it, "s"]);
+    }
+    if (!hits.length) continue;
+    const sx0 = Math.min(...hits.map(h => h[0].x)), sx1 = Math.max(...hits.map(h => h[0].x + h[0].w));
+    const minSz = Math.min(...hits.map(h => h[0].size));
+    // garis jauh lebih panjang dari teksnya = garis tabel/isian, bukan garis bawah
+    if ((lx1 - lx0) > (sx1 - sx0) + minSz * 1.5) continue;
+    for (const [it, t] of hits){ if (t === "u") it.underline = true; else it.strike = true; }
+    // hapus garis dari lapisan grafis (salin warna latar dari atasnya)
+    const ex0 = Math.max(0, Math.floor(Math.max(lx0, sx0 - 1) * s) - 1), ex1 = Math.min(w - 1, Math.ceil(Math.min(lx1, sx1 + 1) * s) + 1);
+    const ry0 = Math.max(1, Math.floor(L.pos - L.t / 2) - 1), ry1 = Math.min(h - 1, Math.ceil(L.pos + L.t / 2) + 1);
+    const src = Math.max(0, ry0 - 2);
+    for (let y = ry0; y <= ry1; y++) for (let x = ex0; x <= ex1; x++){
+      const o = (y * w + x) * 4, q = (src * w + x) * 4;
+      D[o] = D[q]; D[o+1] = D[q+1]; D[o+2] = D[q+2]; D[o+3] = 255;
+    }
+    changed = true;
+  }
+  if (changed) gCanvas.getContext("2d").putImageData(gd, 0, 0);
+}
+
+let __mctx = null;
+function splitItem(it, x0, x1){
+  if (!__mctx) __mctx = document.createElement("canvas").getContext("2d");
+  __mctx.font = `${it.italic ? "italic " : ""}${it.bold ? "bold " : ""}${Math.max(1, it.size)}px "${it.family}", serif`;
+  const str = it.str, pre = [0];
+  for (let i = 1; i <= str.length; i++) pre.push(__mctx.measureText(str.slice(0, i)).width);
+  const k = pre[str.length] ? it.w / pre[str.length] : 1;
+  const at = x => { let best = 0, bd = Infinity; for (let i = 0; i <= str.length; i++){ const d = Math.abs(it.x + pre[i] * k - x); if (d < bd){ bd = d; best = i; } } return best; };
+  let i0 = at(x0), i1 = at(x1);
+  while (i0 < i1 && str[i0] === " ") i0++;
+  while (i1 > i0 && str[i1 - 1] === " ") i1--;
+  if (i1 <= i0) return [it];
+  const mk = (a, b) => ({ ...it, str: str.slice(a, b), x: it.x + pre[a] * k, w: (pre[b] - pre[a]) * k });
+  const out = [];
+  if (i0 > 0) out.push(mk(0, i0));
+  const mid = mk(i0, i1); mid.__mid = true; out.push(mid);
+  if (i1 < str.length) out.push(mk(i1, str.length));
+  return out;
+}
+
+/* ---------- deteksi tabel bergaris ---------- */
+function detectTables(gd, s, W, H, scan){
+  const w = gd.width, h = gd.height, D = gd.data;
+  const lum = new Uint8Array(w * h);
+  for (let i = 0, j = 0; i < lum.length; i++, j += 4) lum[i] = (D[j] * 77 + D[j+1] * 150 + D[j+2] * 29) >> 8;
+  const k = Math.round(2.5 * s) + 1, C = 35;
+  const mh = new Uint8Array(w * h), mv = new Uint8Array(w * h);
+  for (let y = k; y < h - k; y++){
+    const row = y * w;
+    for (let x = k; x < w - k; x++){
+      const i = row + x, v = lum[i];
+      if (v > 225) continue;
+      if (v + C < lum[i - k * w] && v + C < lum[i + k * w]) mh[i] = 1; // garis tipis horizontal
+      if (v + C < lum[i - k] && v + C < lum[i + k]) mv[i] = 1;          // garis tipis vertikal
+    }
+  }
+  const gap = Math.round((scan ? 2.5 : 2) * s), maxT = 3.2 * s;
+  const hl = mergeSegs(segs(mh, w, h, true, 14 * s, gap), maxT);
+  const vl = mergeSegs(segs(mv, w, h, false, 7 * s, gap), maxT);
+  if (hl.length < 2 || vl.length < 2) return [];
+
+  // kelompokkan garis yang saling bersilangan
+  const tol = 3 * s, nH = hl.length, par = [...Array(nH + vl.length).keys()];
+  const find = x => { while (par[x] !== x) x = par[x] = par[par[x]]; return x; };
+  for (let i = 0; i < nH; i++){ const a = hl[i];
+    for (let j = 0; j < vl.length; j++){ const b = vl[j];
+      if (b.pos >= a.b0 - tol && b.pos <= a.b1 + tol && a.pos >= b.b0 - tol && a.pos <= b.b1 + tol) par[find(i)] = find(nH + j);
+    }
+  }
+  const comps = new Map();
+  hl.forEach((l, i) => { const r = find(i); (comps.get(r) || comps.set(r, { hs: [], vs: [] }).get(r)).hs.push(l); });
+  vl.forEach((l, j) => { const r = find(nH + j); (comps.get(r) || comps.set(r, { hs: [], vs: [] }).get(r)).vs.push(l); });
+
+  const out = [];
+  for (const { hs, vs } of comps.values()){
+    if (hs.length < 2 || vs.length < 2) continue;
+    const ys = cluster(hs.map(l => l.pos).concat([Math.min(...vs.map(l => l.b0)), Math.max(...vs.map(l => l.b1))]), tol);
+    const xs = cluster(vs.map(l => l.pos).concat([Math.min(...hs.map(l => l.b0)), Math.max(...hs.map(l => l.b1))]), tol);
+    const R = ys.length - 1, Cc = xs.length - 1;
+    if (R < 1 || Cc < 1) continue;
+    const wPt = (xs[Cc] - xs[0]) / s, hPt = (ys[R] - ys[0]) / s;
+    if (wPt < 20 || hPt < 8) continue;
+    if (R * Cc === 1 && wPt * hPt > 0.4 * W * H) continue; // bingkai halaman
+    const cws = xs.slice(1).map((v, i) => (v - xs[i]) / s), rhs = ys.slice(1).map((v, i) => (v - ys[i]) / s);
+    if (Math.min(...cws) < 4 || Math.min(...rhs) < 4) continue;          // sisa huruf, bukan tabel
+    if (wPt / Cc < 12 || hPt / R < 7) continue;
+    const cov = (lines, pos, a, b) => {
+      let sum = 0;
+      for (const l of lines) if (Math.abs(l.pos - pos) < tol) sum += Math.max(0, Math.min(l.b1, b) - Math.max(l.b0, a));
+      return sum / Math.max(1, b - a) >= 0.6;
+    };
+    const vE = [], hE = [];
+    for (let r = 0; r < R; r++){ vE.push([]); for (let c = 0; c <= Cc; c++) vE[r].push(cov(vs, xs[c], ys[r], ys[r + 1])); }
+    for (let r = 0; r <= R; r++){ hE.push([]); for (let c = 0; c < Cc; c++) hE[r].push(cov(hs, ys[r], xs[c], xs[c + 1])); }
+    // sel gabungan
+    const cp = [...Array(R * Cc).keys()];
+    const cf = x => { while (cp[x] !== x) x = cp[x] = cp[cp[x]]; return x; };
+    for (let r = 0; r < R; r++) for (let c = 0; c < Cc; c++){
+      if (c + 1 < Cc && !vE[r][c + 1]) cp[cf(r * Cc + c)] = cf(r * Cc + c + 1);
+      if (r + 1 < R && !hE[r + 1][c]) cp[cf(r * Cc + c)] = cf((r + 1) * Cc + c);
+    }
+    const gm = new Map();
+    for (let i = 0; i < R * Cc; i++){ const g = cf(i); (gm.get(g) || gm.set(g, []).get(g)).push(i); }
+    const groups = [], cellG = new Int32Array(R * Cc);
+    for (const cells of gm.values()){
+      const rs = cells.map(i => (i / Cc) | 0), cs = cells.map(i => i % Cc);
+      const r0 = Math.min(...rs), r1 = Math.max(...rs), c0 = Math.min(...cs), c1 = Math.max(...cs);
+      if ((r1 - r0 + 1) * (c1 - c0 + 1) === cells.length){
+        cells.forEach(i => cellG[i] = groups.length);
+        groups.push({ r0, r1, c0, c1, items: [] });
+      } else {
+        for (const i of cells){ cellG[i] = groups.length; groups.push({ r0: (i / Cc) | 0, r1: (i / Cc) | 0, c0: i % Cc, c1: i % Cc, items: [] }); }
+      }
+    }
+    // warna & tebal garis
+    const th = hs.map(l => l.t).concat(vs.map(l => l.t)).sort((a, b) => a - b);
+    const sz = Math.max(2, Math.min(24, Math.round(th[th.length >> 1] / s * 8)));
+    let cr = 0, cg = 0, cb = 0, cn = 0;
+    for (const l of hs.slice(0, 3)){
+      const y = Math.round(l.pos);
+      for (let x = l.b0; x <= l.b1; x += 3){ const i = (y * w + x) * 4; if (lum[y * w + x] < 200){ cr += D[i]; cg += D[i+1]; cb += D[i+2]; cn++; } }
+    }
+    let color = "000000";
+    if (cn){ cr /= cn; cg /= cn; cb /= cn; if (Math.max(cr, cg, cb) > 70 || Math.max(cr, cg, cb) - Math.min(cr, cg, cb) > 30) color = toHex(cr, cg, cb); }
+    out.push({ xs: xs.map(v => v / s), ys: ys.map(v => v / s), R, C: Cc, vE, hE, groups, cellG, sz, color,
+      x0: xs[0] / s, x1: xs[Cc] / s, y0: ys[0] / s, y1: ys[R] / s, hasText: false });
+  }
+  return out;
+}
+
+function segs(m, w, h, horiz, minLen, gap){
+  const out = [], A = horiz ? h : w, B = horiz ? w : h;
+  for (let a = 0; a < A; a++){
+    let b = 0;
+    while (b < B){
+      if (!m[horiz ? a * w + b : b * w + a]){ b++; continue; }
+      const st = b; let last = b; b++;
+      while (b < B){
+        if (m[horiz ? a * w + b : b * w + a]) last = b;
+        else if (b - last > gap) break;
+        b++;
+      }
+      if (last - st + 1 >= minLen) out.push({ a, b0: st, b1: last });
+      b = last + 1;
+    }
+  }
+  return out;
+}
+function mergeSegs(sg, maxT){
+  const lines = []; let open = [];
+  for (const g of sg){
+    open = open.filter(l => l.a1 >= g.a - 1);
+    let L = null;
+    for (const l of open){
+      const ov = Math.min(l.b1, g.b1) - Math.max(l.b0, g.b0);
+      if (ov > 0.5 * Math.min(l.b1 - l.b0, g.b1 - g.b0)){ L = l; break; }
+    }
+    if (L){ L.a1 = g.a; L.b0 = Math.min(L.b0, g.b0); L.b1 = Math.max(L.b1, g.b1); }
+    else { L = { a0: g.a, a1: g.a, b0: g.b0, b1: g.b1 }; open.push(L); lines.push(L); }
+  }
+  return lines.filter(l => l.a1 - l.a0 + 1 <= maxT).map(l => ({ pos: (l.a0 + l.a1) / 2, t: l.a1 - l.a0 + 1, b0: l.b0, b1: l.b1 }));
+}
+function cluster(vals, tol){
+  vals = vals.slice().sort((a, b) => a - b);
+  const out = []; let g = [vals[0]];
+  for (let i = 1; i < vals.length; i++){
+    if (vals[i] - g[g.length - 1] <= tol) g.push(vals[i]);
+    else { out.push(g.reduce((a, b) => a + b) / g.length); g = [vals[i]]; }
+  }
+  out.push(g.reduce((a, b) => a + b) / g.length);
+  return out;
+}
+
+/* ---------- gambar & grafis (logo, foto, garis, kotak berwarna) ---------- */
+async function findGraphics(gd, gCanvas, s, W, H, tables, scan, paper){
+  const w = gd.width, h = gd.height, D = gd.data;
+  const bs = Math.max(2, Math.round(3 * s));
+  const BW = Math.ceil(w / bs), BH = Math.ceil(h / bs);
+  const cnt = new Uint32Array(BW * BH);
+  const [pr, pg, pb] = paper || [255, 255, 255];
+  for (let y = 0; y < h; y++){
+    const by = ((y / bs) | 0) * BW;
+    for (let x = 0; x < w; x++){
+      const i = (y * w + x) * 4, r = D[i], g = D[i+1], b = D[i+2];
+      const mx = r > g ? (r > b ? r : b) : (g > b ? g : b), mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+      if (paper ? (Math.abs(r - pr) + Math.abs(g - pg) + Math.abs(b - pb) > 60) : (mx < 238 || mx - mn > 30)) cnt[by + ((x / bs) | 0)]++;
+    }
+  }
+  const thr = scan ? Math.max(2, bs * bs * 0.05) : 1;
+  const ink = new Uint8Array(BW * BH);
+  for (let i = 0; i < ink.length; i++) ink[i] = cnt[i] >= thr ? 1 : 0;
+  for (const t of tables){
+    const bx0 = Math.max(0, Math.floor((t.x0 - 2) * s / bs)), bx1 = Math.min(BW - 1, Math.ceil((t.x1 + 2) * s / bs));
+    const by0 = Math.max(0, Math.floor((t.y0 - 2) * s / bs)), by1 = Math.min(BH - 1, Math.ceil((t.y1 + 2) * s / bs));
+    for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) ink[y * BW + x] = 0;
+  }
+  // komponen terhubung
+  const rad = scan ? 2 : 1, seen = new Uint8Array(BW * BH), boxes = [];
+  for (let i = 0; i < ink.length; i++){
+    if (!ink[i] || seen[i]) continue;
+    const st = [i]; seen[i] = 1;
+    let x0 = BW, y0 = BH, x1 = 0, y1 = 0, n = 0;
+    while (st.length){
+      const j = st.pop(), jx = j % BW, jy = (j / BW) | 0; n++;
+      if (jx < x0) x0 = jx; if (jx > x1) x1 = jx; if (jy < y0) y0 = jy; if (jy > y1) y1 = jy;
+      for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++){
+        const nx = jx + dx, ny = jy + dy; if (nx < 0 || ny < 0 || nx >= BW || ny >= BH) continue;
+        const q = ny * BW + nx; if (ink[q] && !seen[q]){ seen[q] = 1; st.push(q); }
+      }
+    }
+    boxes.push({ x0: x0 * bs, y0: y0 * bs, x1: Math.min(w, (x1 + 1) * bs), y1: Math.min(h, (y1 + 1) * bs), n });
+  }
+  // gabungkan kotak yang saling tumpang tindih
+  let merged = true;
+  while (merged){
+    merged = false;
+    for (let i = 0; i < boxes.length && !merged; i++) for (let j = i + 1; j < boxes.length; j++){
+      const a = boxes[i], b = boxes[j], p = s;
+      if (a.x0 - p < b.x1 && b.x0 - p < a.x1 && a.y0 - p < b.y1 && b.y0 - p < a.y1){
+        a.x0 = Math.min(a.x0, b.x0); a.y0 = Math.min(a.y0, b.y0); a.x1 = Math.max(a.x1, b.x1); a.y1 = Math.max(a.y1, b.y1); a.n += b.n;
+        boxes.splice(j, 1); merged = true; break;
+      }
+    }
+  }
+  const out = [];
+  for (const b of boxes){
+    const wp = (b.x1 - b.x0) / s, hp = (b.y1 - b.y0) / s;
+    if (scan){
+      if (wp * hp < 120 || Math.max(wp, hp) < 9) continue;   // bintik/noda scan
+      if (wp * hp > 0.85 * W * H) continue;                 // warna kertas
+    } else if (Math.max(wp, hp) < 1.5) continue;
+    // potong sedikit lebih lebar agar tepi tidak terpotong
+    const x0 = Math.max(0, Math.floor(b.x0 - s)), y0 = Math.max(0, Math.floor(b.y0 - s));
+    const x1 = Math.min(w, Math.ceil(b.x1 + s)), y1 = Math.min(h, Math.ceil(b.y1 + s));
+    const cw = x1 - x0, ch = y1 - y0;
+    const c = document.createElement("canvas"); c.width = cw; c.height = ch;
+    const cx = c.getContext("2d");
+    const big = (cw / s) * (ch / s) > 0.25 * W * H;
+    if (big){ cx.drawImage(gCanvas, x0, y0, cw, ch, 0, 0, cw, ch); }
+    else {
+      // PNG: putih dibuat transparan supaya tidak menutupi apa pun
+      const src = gd.data, img = cx.createImageData(cw, ch), dst = img.data;
+      for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++){
+        const i = ((y + y0) * w + (x + x0)) * 4, o = (y * cw + x) * 4;
+        dst[o] = src[i]; dst[o+1] = src[i+1]; dst[o+2] = src[i+2];
+        const clear = paper ? Math.abs(src[i] - pr) + Math.abs(src[i+1] - pg) + Math.abs(src[i+2] - pb) < 45 : Math.min(src[i], src[i+1], src[i+2]) >= 250;
+        dst[o+3] = clear ? 0 : 255;
+      }
+      cx.putImageData(img, 0, 0);
+    }
+    const blob = await canvasBlob(c, big ? "image/jpeg" : "image/png", 0.9);
+    c.width = c.height = 0;
+    out.push({ data: new Uint8Array(await blob.arrayBuffer()), ext: big ? "jpeg" : "png", x: x0 / s, y: y0 / s, w: cw / s, h: ch / s });
+  }
+  return out;
+}
+
+/* ---------- susun baris ---------- */
+function buildLines(items){
+  const raw = items.slice().sort((a, b) => a.y - b.y || a.x - b.x);
+  const lines = [];
+  for (const r of raw){
+    let L = null;
+    for (let k = lines.length - 1; k >= Math.max(0, lines.length - 4); k--){
+      const l = lines[k];
+      if (Math.abs(l.y - r.y) < Math.min(l.size, r.size) * 0.45){ L = l; break; }
+    }
+    if (!L){ L = { y: r.y, size: r.size, items: [] }; lines.push(L); }
+    L.items.push(r);
+    L.size = Math.max(L.size, r.size);
+  }
+  for (const l of lines){
+    l.items.sort((a, b) => a.x - b.x);
+    l.x0 = l.items[0].x;
+    l.x1 = Math.max(...l.items.map(i => i.x + i.w));
+    let best = l.items[0];
+    for (const i of l.items) if (i.str.length > best.str.length) best = i;
+    l.main = best.size;
+    l.y = best.y;
+    l.hasTab = false;
+    for (let i = 1; i < l.items.length; i++){
+      const p = l.items[i - 1], q = l.items[i];
+      if (q.x - (p.x + p.w) > Math.min(p.size, q.size) * 2.5) l.hasTab = true;
+    }
+  }
+  lines.sort((a, b) => a.y - b.y);
+  return lines;
+}
+
+/* =====================================================================
+   PEMBUAT DOCX
+   ===================================================================== */
+const esc = s => String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const tw = pt => Math.round(pt * 20);
+const emu = pt => Math.round(pt * 12700);
+
+function runXml(text, st){
+  if (!text) return "";
+  const f = esc(st.family);
+  const rpr = `<w:rPr><w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:cs="${f}" w:eastAsia="${f}"/>${st.bold ? "<w:b/><w:bCs/>" : ""}${st.italic ? "<w:i/><w:iCs/>" : ""}${st.strike ? "<w:strike/>" : ""}${st.color ? `<w:color w:val="${st.color}"/>` : ""}<w:sz w:val="${st.hs}"/><w:szCs w:val="${st.hs}"/>${st.underline ? '<w:u w:val="single"/>' : ""}</w:rPr>`;
+  return text.split("\t").map((part, i) => (i ? `<w:r>${rpr}<w:tab/></w:r>` : "") + (part ? `<w:r>${rpr}<w:t xml:space="preserve">${esc(part)}</w:t></w:r>` : "")).join("");
+}
+
+function lineRuns(line){
+  const runs = [], tabs = [];
+  let prev = null;
+  for (const it of line.items){
+    let text = it.str;
+    if (prev){
+      const gap = it.x - (prev.x + prev.w);
+      const sz = Math.min(prev.size, it.size);
+      if (gap > sz * 2.5){ text = "\t" + text.replace(/^\s+/, ""); tabs.push(it.x); }
+      else if (gap > sz * 0.15 && !/\s$/.test(prev.str) && !/^\s/.test(text)) text = " " + text;
+    }
+    const st = { family: it.family, bold: it.bold, italic: it.italic, color: it.color || null, hs: Math.max(2, Math.round(it.size * 2)),
+      underline: !!it.underline, strike: !!it.strike };
+    const last = runs[runs.length - 1];
+    const same = last && ["family", "bold", "italic", "hs", "color", "underline", "strike"].every(k => last.st[k] === st[k]);
+    // spasi di antara dua kata bergaris bawah ikut bergaris; spasi sebelum kata bergaris dari kata biasa tidak
+    if (same) last.text += text;
+    else if (last && /^ /.test(text) && st.underline && !last.st.underline){ last.text += " "; runs.push({ text: text.slice(1), st }); }
+    else runs.push({ text, st });
+    prev = it;
+  }
+  return { runs, tabs };
+}
+
+function groupParagraphs(lines, M, W, barriers){
+  const textW = W - M.l - M.r;
+  const isCent = l => {
+    const c = (l.x0 + l.x1) / 2;
+    return (Math.abs(c - W / 2) < W * 0.03 || Math.abs(c - (M.l + W - M.r) / 2) < W * 0.03) && l.x0 - M.l > 15 && (l.x1 - l.x0) < textW * 0.9;
+  };
+  const paras = [];
+  let P = null, prev = null;
+  for (const l of lines){
+    let join = false;
+    if (P && prev && !prev.hasTab && !l.hasTab){
+      const gap = l.y - prev.y;
+      const same = Math.abs(l.main - prev.main) < 0.6;
+      const barrier = barriers.some(b => b > prev.y - prev.main && b < l.y);
+      if (same && !barrier && gap > prev.main * 0.6 && gap < prev.main * 1.75){
+        if (P.centered) join = isCent(l) && Math.abs((l.x0 + l.x1) / 2 - P.c) < 4;
+        else if (!isCent(l) || P.lines.length > 1){
+          const ref = P.lines.length > 1 ? P.lines[1].x0 : null;
+          join = ref != null ? Math.abs(l.x0 - ref) < l.main * 0.8 : Math.abs(l.x0 - P.lines[0].x0) < l.main * 4;
+        }
+      }
+    }
+    if (join){ P.lines.push(l); P.c = (P.c * (P.lines.length - 1) + (l.x0 + l.x1) / 2) / P.lines.length; }
+    else { P = { lines: [l], centered: isCent(l) && !l.hasTab, c: (l.x0 + l.x1) / 2 }; paras.push(P); }
+    prev = l;
+  }
+  return paras;
+}
+
+function median(a){ const b = a.slice().sort((x, y) => x - y); return b[b.length >> 1]; }
+
+function paraXml(P, M, W, cursor, exact){
+  const n = P.lines.length, f = P.lines[0];
+  let L = n > 1 ? median(P.lines.slice(1).map((l, i) => l.y - P.lines[i].y)) : f.main * 1.2;
+  L = Math.max(L, f.main * 1.0);
+  const before = Math.max(0, f.y - 0.8 * L - cursor);
+  const newCursor = cursor + before + 0.8 * L + (n - 1) * L + 0.2 * L;
+
+  const textW = W - M.l - M.r;
+  const maxX1 = Math.max(...P.lines.map(l => l.x1));
+  const minX0 = Math.min(...P.lines.map(l => l.x0));
+  const maxX0 = Math.max(...P.lines.map(l => l.x0));
+  let jc = "left", indL = 0, indR = 0, first = 0;
+  const isRight = !P.centered && !f.hasTab && (n === 1
+    ? (W - M.r - f.x1 < 8 && f.x0 - M.l > textW * 0.4)
+    : (P.lines.every(l => maxX1 - l.x1 < 3) && maxX0 - minX0 > 5 && minX0 - M.l > textW * 0.3));
+  if (P.centered){
+    const D = Math.min(P.c, W - P.c) - 1;
+    jc = "center"; indL = P.c - D - M.l; indR = (W - M.r) - (P.c + D);
+  } else if (isRight){
+    jc = "right"; indR = (W - M.r) - maxX1; indL = exact ? -M.l : 0;
+  } else {
+    const rest = n > 1 ? P.lines.slice(1) : P.lines;
+    const leftX = Math.min(...rest.map(l => l.x0));
+    indL = leftX - M.l;
+    first = n > 1 ? f.x0 - leftX : 0;
+    if (n > 1 && P.lines.slice(0, -1).every(l => maxX1 - l.x1 < 5)){ jc = "both"; indR = (W - M.r) - maxX1; }
+    else { jc = "left"; indR = exact ? -M.r : (W - M.r) - maxX1; }
+  }
+
+  // isi run
+  const parts = [];
+  let tabs = [];
+  P.lines.forEach((l, i) => {
+    const { runs, tabs: tb } = lineRuns(l);
+    tabs = tabs.concat(tb);
+    if (i > 0){
+      if (exact) parts.push("<w:r><w:br/></w:r>");
+      else {
+        const prevRun = parts.lastRun;
+        if (prevRun && /[-­]$/.test(prevRun.text) && runs[0] && /^[a-z]/.test(runs[0].text)) prevRun.text = prevRun.text.replace(/[-­]$/, "");
+        else if (runs[0] && prevRun && !/\s$/.test(prevRun.text)) runs[0].text = " " + runs[0].text;
+      }
+    }
+    for (const r of runs){ parts.push(r); parts.lastRun = r; }
+  });
+  const body = parts.map(p => typeof p === "string" ? p : runXml(p.text, p.st)).join("");
+
+  const ppr = [];
+  if (tabs.length){
+    // baris berkolom (dipisah tab): selalu rata kiri dari posisi aslinya
+    jc = "left"; indL = f.x0 - M.l; indR = -M.r; first = 0;
+    ppr.push("<w:tabs>" + [...new Set(tabs.map(x => tw(x - M.l)))].sort((a, b) => a - b).map(p => `<w:tab w:val="left" w:pos="${p}"/>`).join("") + "</w:tabs>");
+  }
+  ppr.push(`<w:spacing w:before="${tw(before)}" w:after="0" w:line="${tw(L)}" w:lineRule="exact"/>`);
+  const ind = [];
+  if (Math.abs(indL) > 0.5) ind.push(`w:left="${tw(indL)}"`);
+  if (Math.abs(indR) > 0.5) ind.push(`w:right="${tw(indR)}"`);
+  if (Math.abs(first) > 2) ind.push(first > 0 ? `w:firstLine="${tw(first)}"` : `w:hanging="${tw(-first)}"`);
+  if (ind.length) ppr.push(`<w:ind ${ind.join(" ")}/>`);
+  ppr.push(`<w:jc w:val="${jc}"/>`);
+  return { xml: `<w:p><w:pPr>${ppr.join("")}</w:pPr>${body}</w:p>`, cursor: newCursor };
+}
+
+function spacerXml(h, pageBreak){
+  return `<w:p><w:pPr>${pageBreak ? "<w:pageBreakBefore/>" : ""}<w:spacing w:before="0" w:after="0" w:line="${Math.max(20, tw(h))}" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr>`;
+}
+
+function cellXml(g, t){
+  const x0 = t.xs[g.c0], x1 = t.xs[g.c1 + 1], y0 = t.ys[g.r0], y1 = t.ys[g.r1 + 1];
+  const lines = g.lines || [];
+  if (!lines.length) return { xml: spacerXml(1) + "</w:p>", va: "top" };
+  const fl = lines[0], ll = lines[lines.length - 1];
+  const topGap = (fl.y - fl.main) - y0, botGap = y1 - (ll.y + ll.main * 0.25);
+  let va = "top";
+  if (Math.abs(topGap - botGap) < Math.max(3, 0.25 * (topGap + botGap)) && topGap > 1) va = "center";
+  else if (botGap < topGap * 0.5) va = "bottom";
+  let xml = "", prev = null;
+  for (const l of lines){
+    const L = l.main * 1.2;
+    let before = 0;
+    if (!prev){ if (va === "top") before = Math.max(0, l.y - y0 - 0.8 * L); }
+    else before = Math.max(0, (l.y - prev.y) - L);
+    const lg = l.x0 - x0, rg = x1 - l.x1;
+    let jc = "left", ind = "";
+    if (Math.abs(lg - rg) < 4 && lg > 2) jc = "center";
+    else if (rg < lg * 0.5 && lg > 8){ jc = "right"; ind = `<w:ind w:right="${tw(Math.max(0, rg))}"/>`; }
+    else ind = `<w:ind w:left="${tw(Math.max(0, lg))}"/>`;
+    const { runs } = lineRuns(l);
+    xml += `<w:p><w:pPr><w:spacing w:before="${tw(before)}" w:after="0" w:line="${tw(L)}" w:lineRule="exact"/>${ind}<w:jc w:val="${jc}"/></w:pPr>${runs.map(r => runXml(r.text.replace(/\t/g, " "), r.st)).join("")}</w:p>`;
+    prev = l;
+  }
+  return { xml, va };
+}
+
+function tableXml(t, M){
+  const cols = []; for (let c = 0; c < t.C; c++) cols.push(t.xs[c + 1] - t.xs[c]);
+  const bd = on => on ? `w:val="single" w:sz="${t.sz}" w:space="0" w:color="${t.color}"` : `w:val="nil"`;
+  let x = `<w:tbl><w:tblPr><w:tblW w:w="${tw(t.x1 - t.x0)}" w:type="dxa"/><w:tblInd w:w="${tw(t.x0 - M.l)}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid>${cols.map(c => `<w:gridCol w:w="${tw(c)}"/>`).join("")}</w:tblGrid>`;
+  const cache = new Map();
+  for (let r = 0; r < t.R; r++){
+    x += `<w:tr><w:trPr><w:trHeight w:val="${tw(t.ys[r + 1] - t.ys[r])}" w:hRule="atLeast"/><w:cantSplit/></w:trPr>`;
+    for (let c = 0; c < t.C; c++){
+      const gi = t.cellG[r * t.C + c], g = t.groups[gi];
+      if (c !== g.c0) continue;
+      const span = g.c1 - g.c0 + 1;
+      const width = t.xs[g.c1 + 1] - t.xs[g.c0];
+      const vm = g.r1 > g.r0 ? (r === g.r0 ? '<w:vMerge w:val="restart"/>' : "<w:vMerge/>") : "";
+      const top = r === g.r0 ? t.hE[r][g.c0] : false;
+      const bottom = r === g.r1 ? t.hE[r + 1][g.c0] : false;
+      const left = t.vE[r][g.c0], right = t.vE[r][g.c1 + 1];
+      let content;
+      if (!cache.has(gi)) cache.set(gi, cellXml(g, t));
+      content = cache.get(gi);
+      const inner = r === g.r0 ? content.xml : spacerXml(1) + "</w:p>";
+      x += `<w:tc><w:tcPr><w:tcW w:w="${tw(width)}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ""}${vm}<w:tcBorders><w:top ${bd(top)}/><w:left ${bd(left)}/><w:bottom ${bd(bottom)}/><w:right ${bd(right)}/></w:tcBorders>${g.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${g.fill}"/>` : ""}<w:vAlign w:val="${content.va}"/></w:tcPr>${inner}</w:tc>`;
+    }
+    x += "</w:tr>";
+  }
+  return x + "</w:tbl>";
+}
+
+function anchorXml(id, im){
+  const cx = emu(im.w), cy = emu(im.h);
+  return `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="${251658240 + id}" behindDoc="1" locked="0" layoutInCell="0" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>${emu(im.x)}</wp:posOffset></wp:positionH><wp:positionV relativeFrom="page"><wp:posOffset>${emu(im.y)}</wp:posOffset></wp:positionV><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/><wp:docPr id="${id}" name="Gambar ${id}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${id}" name="img${id}.${im.ext}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdImg${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>`;
+}
+
+function computeMargins(pages){
+  const W = pages[0].W, H = pages[0].H;
+  let l = Infinity, r = Infinity, t = Infinity;
+  for (const p of pages){
+    for (const ln of p.lines){ l = Math.min(l, ln.x0); r = Math.min(r, p.W - ln.x1); t = Math.min(t, ln.y - ln.main * 1.1); }
+    for (const tb of p.tables){ l = Math.min(l, tb.x0); r = Math.min(r, p.W - tb.x1); t = Math.min(t, tb.y0); }
+  }
+  const cl = (v, d, mx) => isFinite(v) ? Math.max(0, Math.min(v, mx)) : d;
+  return { W, H, l: cl(l - 0.5, 72, 72), r: cl(r - 0.5, 72, 72), t: cl(t - 2, 36, 36) };
+}
+
+function buildDocxParts(pages, opts){
+  const exact = opts.exact !== false;
+  const M = computeMargins(pages);
+  const body = [], media = [];
+  let imgId = 0, maxBottom = 0, lastWasTable = false;
+  pages.forEach((p, pi) => {
+    const anchors = p.images.map(im => {
+      const id = ++imgId;
+      media.push({ name: `img${id}.${im.ext}`, data: im.data });
+      return anchorXml(id, im);
+    }).join("");
+    body.push(spacerXml(1, pi > 0) + anchors + "</w:p>");
+    let cursor = M.t + 1;
+    const paras = groupParagraphs(p.lines, M, p.W, p.tables.map(t => t.y0));
+    const els = paras.map(P => ({ k: "p", top: P.lines[0].y - P.lines[0].main, P }))
+      .concat(p.tables.map(t => ({ k: "t", top: t.y0, t })))
+      .sort((a, b) => a.top - b.top);
+    lastWasTable = false;
+    for (const e of els){
+      if (e.k === "t"){
+        const gap = e.t.y0 - cursor;
+        if (gap >= 1 || lastWasTable){ const hh = Math.max(1, gap); body.push(spacerXml(hh) + "</w:p>"); cursor += hh; }
+        body.push(tableXml(e.t, M));
+        cursor = Math.max(cursor, e.t.y1);
+        lastWasTable = true;
+      } else {
+        const r = paraXml(e.P, M, p.W, cursor, exact);
+        body.push(r.xml); cursor = r.cursor; lastWasTable = false;
+      }
+    }
+    maxBottom = Math.max(maxBottom, cursor);
+  });
+  if (lastWasTable) body.push(spacerXml(1) + "</w:p>");
+  const bottom = Math.max(0, Math.min(36, M.H - maxBottom - 3));
+  const sect = `<w:sectPr><w:pgSz w:w="${tw(M.W)}" w:h="${tw(M.H)}"${M.W > M.H ? ' w:orient="landscape"' : ""}/><w:pgMar w:top="${tw(M.t)}" w:right="${tw(M.r)}" w:bottom="${tw(bottom)}" w:left="${tw(M.l)}" w:header="0" w:footer="0" w:gutter="0"/><w:docGrid w:linePitch="360"/></w:sectPr>`;
+  const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+  const files = {};
+  files["[Content_Types].xml"] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`;
+  files["_rels/.rels"] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`;
+  files["docProps/core.xml"] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>PDF ke Word</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().replace(/\.\d+Z$/, "Z")}</dcterms:created></cp:coreProperties>`;
+  files["word/settings.xml"] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:defaultTabStop w:val="720"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
+  files["word/styles.xml"] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri" w:eastAsia="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="id-ID"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:widowControl w:val="0"/><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`;
+  let rels = `<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>`;
+  media.forEach((m, i) => {
+    files[`word/media/${m.name}`] = m.data;
+    rels += `<Relationship Id="rIdImg${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${m.name}"/>`;
+  });
+  files["word/_rels/document.xml.rels"] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`;
+  files["word/document.xml"] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${NS}><w:body>${body.join("")}${sect}</w:body></w:document>`;
+  return files;
+}
+
+async function buildDocx(pages, opts){
+  const files = buildDocxParts(pages, opts);
+  const z = new JSZip();
+  for (const [name, data] of Object.entries(files)) z.file(name, data, { binary: typeof data !== "string" });
+  return z.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", compression: "DEFLATE" });
+}
+</script>
+</body>
+</html>
