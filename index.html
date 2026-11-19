@@ -419,8 +419,12 @@ async function fullPageImage(page, vp){
 
 /* ---------- teks dari PDF digital ---------- */
 function fontInfo(page, fontName, styles){
-  let raw = "";
-  try { const f = page.commonObjs.get(fontName); raw = (f && (f.name || f.loadedName)) || ""; } catch(e){}
+  let raw = "", measure = null;
+  try {
+    const f = page.commonObjs.get(fontName);
+    raw = (f && (f.name || f.loadedName)) || "";
+    if (f && f.loadedName && !f.missingFile) measure = f.loadedName; // huruf asli yang tertanam di PDF
+  } catch(e){}
   const st = styles[fontName] || {};
   const fam = st.fontFamily || "";
   const s = raw.replace(/^[A-Z]{6}\+/, "");
@@ -445,11 +449,35 @@ function fontInfo(page, fontName, styles){
   else if (/times|tinos|liberationserif|nimbusrom/.test(low)) family = "Times New Roman";
   else if (/symbol/.test(low)) family = "Symbol";
   else {
-    const clean = s.split(/[-,]/)[0].replace(/(MT|PS|Std|Pro|LT)$/,"").replace(/([a-z])([A-Z])/g, "$1 $2").trim();
-    if (/^[A-Za-z ]{3,30}$/.test(clean)) family = clean;
-    else if (/serif/.test(fam) && !/sans/.test(fam)) family = "Times New Roman";
+    // nama huruf lain: pakai bila ada di perangkat, kalau tidak pilih pengganti yang mirip
+    const base = s.split(/[-,]/)[0].replace(/(MT|PS|Std|Pro|LT)$/, "").trim();
+    // coba semua kemungkinan spasi di batas huruf besar: "DejaVuSerif" → "DejaVu Serif"
+    const bounds = []; for (let i = 1; i < base.length; i++) if (/[a-z0-9]/.test(base[i - 1]) && /[A-Z]/.test(base[i])) bounds.push(i);
+    const cands = [];
+    if (bounds.length <= 5) for (let m = 0; m < (1 << bounds.length); m++){
+      let x = "", last = 0;
+      bounds.forEach((b, j) => { if (m & (1 << j)){ x += base.slice(last, b) + " "; last = b; } });
+      cands.push(x + base.slice(last));
+    } else cands.push(base);
+    const found = cands.filter(x => /^[A-Za-z0-9 ]{3,40}$/.test(x)).find(x => fontAvailable(x));
+    const nm = s.toLowerCase();
+    const serif = /sans|gothic|grotesk/.test(nm) ? false
+      : /serif|roman|book|minion|garamond|palat|baskerv|didot|bodoni|georgia|antiqua|times/.test(nm) ? true
+      : fam === "serif";
+    const mono = /mono/.test(low) || fam === "monospace";
+    family = found || (mono ? "Courier New" : serif ? "Times New Roman" : "Arial");
   }
-  return { bold, italic, family };
+  // huruf standar PDF yang tidak ditanam: ukur dengan huruf sistem yang ukurannya setara
+  let measureSys = false;
+  if (!measure){
+    const eq = /helvetica|arial/.test(low) ? ["Helvetica", "Arial", "Liberation Sans", "Arimo"]
+      : /times/.test(low) ? ["Times New Roman", "Times", "Liberation Serif", "Tinos"]
+      : /courier/.test(low) ? ["Courier New", "Courier", "Liberation Mono", "Cousine"] : [];
+    const hit = eq.find(x => fontAvailable(x));
+    if (hit){ measure = hit; measureSys = true; }
+  }
+  if (window.__famOverride) family = window.__famOverride; // pengujian
+  return { bold, italic, family, measure, measureSys };
 }
 
 async function extractItems(page, vp){
@@ -470,9 +498,33 @@ async function extractItems(page, vp){
     if (Math.abs(m1) > 0.25 * Math.abs(m0) + 0.01) continue; // teks miring/vertikal dilewati
     const fi = fcache[t.fontName] || (fcache[t.fontName] = fontInfo(page, t.fontName, tc.styles));
     const scaleX = Math.hypot(m0, m1) / Math.hypot(tr[0], tr[1] || 0) || 1;
-    out.push({ str: t.str, x: px, y: py, size, w: (t.width || t.str.length * size * 0.5) * scaleX, ...fi });
+    const item = { str: t.str, x: px, y: py, size, w: (t.width || t.str.length * size * 0.5) * scaleX, ...fi };
+    out.push(...splitWords(item));
   }
+  for (const it of out){ delete it.measure; delete it.measureSys; }
   return out;
+}
+
+// pecah teks per kata memakai huruf asli PDF, supaya posisi tiap kata bisa ditepatkan
+function splitWords(it){
+  if (!it.measure || !/\S\s+\S/.test(it.str) || !fontAvailable(it.measure)) return [it];
+  const c = fitCtx();
+  c.font = it.measureSys ? `${it.italic ? "italic " : ""}${it.bold ? "bold " : ""}100px "${it.measure}"` : `100px "${it.measure}"`;
+  const total = c.measureText(it.str).width;
+  if (!(total > 0)) return [it];
+  // lebar alami huruf; sisa lebar (rata kiri-kanan) dibagi ke spasi saja
+  const k0 = it.size / 100, nSp = (it.str.match(/ /g) || []).length;
+  const extra = it.w - total * k0;
+  const useSp = nSp > 0 && extra > -0.02 * it.w && extra < it.w * 0.6;
+  const k = useSp ? k0 : it.w / total, perSp = useSp ? extra / nSp : 0;
+  const out = [], re = /\S+/g;
+  let m;
+  while ((m = re.exec(it.str))){
+    const pre = it.str.slice(0, m.index);
+    const x = it.x + c.measureText(pre).width * k + (pre.match(/ /g) || []).length * perSp;
+    out.push({ ...it, str: m[0], x, w: c.measureText(m[0]).width * k });
+  }
+  return out.length ? out : [it];
 }
 
 /* ---------- analisis halaman PDF digital ---------- */
@@ -524,7 +576,7 @@ function ocrWords(data, s, minConf){
     for (const L of pl) for (const w of L.words){
       const wx = (w.bbox.x0 + w.bbox.x1) / 2;
       out.push({ str: w.text, x: w.bbox.x0 / s, y: L.baseAt(wx) / s, size: med, w: (w.bbox.x1 - w.bbox.x0) / s,
-        bold: !!w.is_bold, italic: !!w.is_italic, bbox: w.bbox });
+        bold: !!w.is_bold, italic: !!w.is_italic, bbox: w.bbox, ocr: true });
     }
   }
   return out;
@@ -601,7 +653,7 @@ async function analyzeScan(page, vp, ocr, opts){
   const inTable = it => { const cx = it.x + it.w / 2, cy = it.y - it.size * 0.3; return tables.find(t => cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1); };
   const norm = (list, tol) => { if (!list.length) return; const m = median(list.map(i => i.size)); for (const i of list) if (Math.abs(i.size - m) / m < tol) i.size = m; };
   norm(items.filter(i => !inTable(i)), 0.12);
-  for (const t of tables) norm(items.filter(i => inTable(i) === t), 0.35);
+  for (const t of tables) norm(items.filter(i => inTable(i) === t), 0.6);
 
   cv.width = cv.height = 0;
   const res = await analyzeCommon({ W, H, s, items, nd, gd, gCanvas: clean, opts, scan: true, tables, paper });
@@ -705,12 +757,27 @@ function detectUnderlines(items, gd, gCanvas, s, tables){
     const i = y * w + x, v = lum[i];
     if (v < 235 && v + C < lum[i - k * w] && v + C < lum[i + k * w]) mh[i] = 1;
   }
-  const lines = mergeSegs(segs(mh, w, h, true, Math.max(3, 2 * s), Math.round(s)), 2.6 * s);
+  // garis bawah sering terputus di sekitar ekor huruf (y, g, p, j): sambungkan potongan yang sejajar
+  const lines = joinCollinear(mergeSegs(segs(mh, w, h, true, 2, Math.round(s)), 2.6 * s), s, items);
   let changed = false;
+  const accepted = [], done = new Set();
+  const pad = Math.max(2, Math.round(0.4 * s));
+  const erase = (x0, x1, L) => {
+    const ex0 = Math.max(0, Math.floor(x0) - 1), ex1 = Math.min(w - 1, Math.ceil(x1) + 1);
+    const ry0 = Math.max(1, Math.floor(L.pos - L.t / 2) - pad), ry1 = Math.min(h - 1, Math.ceil(L.pos + L.t / 2) + pad);
+    const src = Math.max(0, ry0 - 2);
+    for (let y = ry0; y <= ry1; y++) for (let x = ex0; x <= ex1; x++){
+      const o = (y * w + x) * 4, q = (src * w + x) * 4;
+      D[o] = D[q]; D[o+1] = D[q+1]; D[o+2] = D[q+2]; D[o+3] = 255;
+    }
+    changed = true;
+  };
+  const isBorder = (ly, lx0, lx1) => tables && tables.some(t => lx1 > t.x0 - 2 && lx0 < t.x1 + 2 && t.ys.some(y => Math.abs(y - ly) < 2.5));
   for (const L of lines){
     const ly = L.pos / s, lx0 = L.b0 / s, lx1 = (L.b1 + 1) / s;
+    if (L.b1 - L.b0 + 1 < 2 * s) continue; // potongan kecil: diperiksa di tahap kedua
     // garis batas tabel bukan garis bawah
-    if (tables && tables.some(t => lx1 > t.x0 - 2 && lx0 < t.x1 + 2 && t.ys.some(y => Math.abs(y - ly) < 2.5))) continue;
+    if (isBorder(ly, lx0, lx1)) continue;
     // garis yang tidak "tertutup" teks secara rapat juga bukan garis bawah
     {
       const near = items.filter(it => { const d = ly - it.y; return d > -0.5 * it.size && d < 0.4 * it.size && it.x < lx1 && it.x + it.w > lx0; })
@@ -731,7 +798,10 @@ function detectUnderlines(items, gd, gCanvas, s, tables){
       if (d0 < -0.5 * it.size || d0 > 0.4 * it.size) continue;
       let ov = Math.min(lx1, it.x + it.w) - Math.max(lx0, it.x);
       if (ov < Math.min(2, it.w * 0.5)) continue;
-      if (ov < it.w * 0.85){
+      // celah garis di tepi kata (karena ekor huruf di awal/akhir kata) bukan berarti sebagian kata tak bergaris
+      const unL = Math.max(0, lx0 - it.x), unR = Math.max(0, it.x + it.w - lx1);
+      const edgeGap = unL <= it.size * 0.65 && unR <= it.size * 0.65 && ov >= it.w * 0.4;
+      if (ov < it.w * 0.85 && !edgeGap){
         // garis hanya menutupi sebagian teks → pecah teksnya
         const parts = splitItem(it, lx0, lx1);
         if (parts.length < 2) { if (ov < it.w * 0.5) continue; }
@@ -754,16 +824,51 @@ function detectUnderlines(items, gd, gCanvas, s, tables){
     if ((lx1 - lx0) > (sx1 - sx0) + minSz * 1.5) continue;
     for (const [it, t] of hits){ if (t === "u") it.underline = true; else it.strike = true; }
     // hapus garis dari lapisan grafis (salin warna latar dari atasnya)
-    const ex0 = Math.max(0, Math.floor(Math.max(lx0, sx0 - 1) * s) - 1), ex1 = Math.min(w - 1, Math.ceil(Math.min(lx1, sx1 + 1) * s) + 1);
-    const ry0 = Math.max(1, Math.floor(L.pos - L.t / 2) - 1), ry1 = Math.min(h - 1, Math.ceil(L.pos + L.t / 2) + 1);
-    const src = Math.max(0, ry0 - 2);
-    for (let y = ry0; y <= ry1; y++) for (let x = ex0; x <= ex1; x++){
-      const o = (y * w + x) * 4, q = (src * w + x) * 4;
-      D[o] = D[q]; D[o+1] = D[q+1]; D[o+2] = D[q+2]; D[o+3] = 255;
+    // seluruh lebar teks yang bergaris dibersihkan, termasuk potongan kecil di sela ekor huruf
+    erase((sx0 - 1) * s, (sx1 + 1) * s, L);
+    accepted.push({ L, size: minSz, kind: hits[0][1] });
+    done.add(L);
+  }
+  // tahap kedua: potongan garis kecil yang sejajar & menempel pada garis bawah yang sudah dikenali
+  let more = accepted.length > 0;
+  while (more){
+    more = false;
+    for (const L of lines){
+      if (done.has(L)) continue;
+      const ly = L.pos / s, lx0 = L.b0 / s, lx1 = (L.b1 + 1) / s;
+      if (isBorder(ly, lx0, lx1)) { done.add(L); continue; }
+      const A = accepted.find(a => Math.abs(a.L.pos - L.pos) <= 1.5 * s && Math.abs(a.L.t - L.t) <= 1.5 * s
+        && L.b0 <= a.L.b1 + a.size * s && L.b1 >= a.L.b0 - a.size * s);
+      if (!A) continue;
+      if ((lx1 - lx0) > A.size * 3) continue; // potongan panjang yang belum dikenali tidak ikut
+      for (const it of items){
+        const ov = Math.min(lx1, it.x + it.w) - Math.max(lx0, it.x), d = ly - it.y;
+        if (ov >= it.w * 0.6 && d > -0.5 * it.size && d < 0.4 * it.size){ if (A.kind === "u") it.underline = true; else it.strike = true; }
+      }
+      erase(L.b0, L.b1, L);
+      accepted.push({ L, size: A.size, kind: A.kind }); done.add(L); more = true;
     }
-    changed = true;
   }
   if (changed) gCanvas.getContext("2d").putImageData(gd, 0, 0);
+}
+
+function joinCollinear(lines, s, items){
+  lines = lines.slice().sort((a, b) => a.pos - b.pos || a.b0 - b.b0);
+  // celah boleh disambung bila ada teks tepat di atasnya (kata yang sama / spasi di antara kata)
+  const gapOk = (o, l) => {
+    const g = l.b0 - o.b1;
+    if (g <= 6 * s) return true;
+    const ly = l.pos / s, gx0 = o.b1 / s, gx1 = l.b0 / s;
+    return (items || []).some(it => { const d = ly - it.y; return d > -0.06 * it.size && d < 0.4 * it.size && g / s <= it.size * 0.9
+      && it.x < gx1 + it.size && it.x + it.w > gx0 - it.size; });
+  };
+  const out = [];
+  for (const l of lines){
+    const p = out.find(o => Math.abs(o.pos - l.pos) <= 1.2 && Math.abs(o.t - l.t) <= 1.5 && l.b1 >= o.b0 && gapOk(o, l));
+    if (p){ p.b0 = Math.min(p.b0, l.b0); p.b1 = Math.max(p.b1, l.b1); }
+    else out.push({ ...l });
+  }
+  return out;
 }
 
 let __mctx = null;
@@ -1042,32 +1147,146 @@ const esc = s => String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾�
 const tw = pt => Math.round(pt * 20);
 const emu = pt => Math.round(pt * 12700);
 
-function runXml(text, st){
-  if (!text) return "";
-  const f = esc(st.family);
-  const rpr = `<w:rPr><w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:cs="${f}" w:eastAsia="${f}"/>${st.bold ? "<w:b/><w:bCs/>" : ""}${st.italic ? "<w:i/><w:iCs/>" : ""}${st.strike ? "<w:strike/>" : ""}${st.color ? `<w:color w:val="${st.color}"/>` : ""}<w:sz w:val="${st.hs}"/><w:szCs w:val="${st.hs}"/>${st.underline ? '<w:u w:val="single"/>' : ""}</w:rPr>`;
-  return text.split("\t").map((part, i) => (i ? `<w:r>${rpr}<w:tab/></w:r>` : "") + (part ? `<w:r>${rpr}<w:t xml:space="preserve">${esc(part)}</w:t></w:r>` : "")).join("");
+/* ---- pengukur lebar teks: menyamakan lebar setiap potongan teks dengan PDF ---- */
+let __fitCtx = null; const __avail = {};
+function fitCtx(){
+  if (!__fitCtx){ __fitCtx = document.createElement("canvas").getContext("2d"); try { __fitCtx.fontKerning = "none"; } catch(e){} }
+  return __fitCtx;
+}
+function fontAvailable(fam){
+  if (fam in __avail) return __avail[fam];
+  const c = fitCtx(), t = "mmmmmmmmmmlliI1WQ@#";
+  const m = f => { c.font = f; return c.measureText(t).width; };
+  return __avail[fam] = !(m("40px monospace") === m(`40px "${fam}", monospace`) && m("40px serif") === m(`40px "${fam}", serif`));
+}
+function fitSpacing(text, st, target){
+  const n = [...text].length;
+  if (window.__noFit || n < 1 || !(target > 0) || !fontAvailable(st.family)) return 0;
+  const c = fitCtx(), size = st.hs / 2;
+  c.font = `${st.italic ? "italic " : ""}${st.bold ? "bold " : ""}${size}px "${st.family}"`;
+  let m = c.measureText(text).width;
+  if (!(m > 0) || Math.abs(target - m) / target < 0.004) return 0;
+  let scale = 0;
+  if (text.trim() && n >= 1){
+    // selisih besar (huruf pengganti beda lebar): lebarkan/sempitkan huruf, sisanya lewat jarak huruf
+    const r = target / m;
+    if (Math.abs(r - 1) > 0.05){ scale = Math.max(66, Math.min(150, Math.round(r * 100))); m = m * scale / 100; }
+  }
+  const extra = n === 1 && text === " " ? Math.max(-m * 0.8, Math.min(3 * size, target - m))
+    : Math.max(-0.25 * size, Math.min(0.4 * size, (target - m) / n));
+  const v = Math.round(extra * 20);
+  return { sp: Math.abs(v) >= 1 ? v : 0, w: scale && scale !== 100 ? scale : 0 };
 }
 
-function lineRuns(line){
+function measureRun(text, st){
+  if (!fontAvailable(st.family)) return null;
+  const c = fitCtx();
+  c.font = `${st.italic ? "italic " : ""}${st.bold ? "bold " : ""}${st.hs / 2}px "${st.family}"`;
+  return c.measureText(text).width;
+}
+// hitung penyesuaian lebar semua potongan; spasi yang harus lebih sempit dipindah ke kata sebelumnya
+// (beberapa aplikasi mengabaikan penyempitan pada spasi)
+// OCR: satu skala lebar huruf untuk satu halaman, dari perbandingan lebar baris di scan dengan huruf pengganti
+let __ocrScale = 100;
+function ocrPageScale(lines){
+  const rs = [];
+  for (const l of lines){
+    if (!l.items.length || !l.items[0].ocr || l.hasTab) continue;
+    const text = l.items.map(i => i.str).join(" ");
+    if (text.length < 10) continue;
+    const it = l.items[0];
+    const m = measureRun(text, { family: it.family, bold: it.bold, italic: it.italic, hs: Math.round(it.size * 2) });
+    if (m > 0) rs.push((l.x1 - l.x0) / m);
+  }
+  if (!rs.length) return 100;
+  const r = median(rs);
+  return Math.abs(r - 1) > 0.03 ? Math.max(70, Math.min(140, Math.round(r * 100))) : 100;
+}
+function fitRuns(runs){
+  const ocrScale = __ocrScale;
+  for (let i = 0; i < runs.length; i++){
+    const r = runs[i];
+    if (r.tab || !r.text || !(r.x1 > r.x0)) continue;
+    // OCR: kotak kata hanya selebar tintanya → lebar kata dibiarkan alami, hanya awal kata yang ditepatkan
+    if (r.st.ocr && !r.space){
+      const m = measureRun(r.text, r.st);
+      r.natW = m == null ? null : m * ocrScale / 100;
+      r.fit = ocrScale !== 100 ? { sp: 0, w: ocrScale } : 0;
+      continue;
+    }
+    if (r.st.ocr && r.space){
+      const p = runs[i - 1], m = measureRun(" ", r.st);
+      if (p && p.natW != null && m != null){
+        const target = r.x1 - (p.x0 + p.natW);
+        const ms = m * ocrScale / 100;
+        if (target > ms){ const v = Math.round(Math.min(3 * r.st.hs / 2, target - ms) * 20); r.fit = { sp: v >= 1 ? v : 0, w: ocrScale !== 100 ? ocrScale : 0 }; }
+        else r.fit = ocrScale !== 100 ? { sp: 0, w: ocrScale } : 0;
+      } else r.fit = 0;
+      continue;
+    }
+    if (r.space){
+      const m = measureRun(" ", r.st);
+      if (m != null && r.x1 - r.x0 < m){
+        const deficit = m - (r.x1 - r.x0), p = runs[i - 1];
+        r.fit = 0;
+        if (p && !p.tab && !p.space && p.text){ p.x1 -= deficit; p.fit = fitSpacing(p.text, p.st, p.x1 - p.x0); }
+        continue;
+      }
+    }
+    r.fit = fitSpacing(r.text, r.st, r.x1 - r.x0);
+  }
+  return runs;
+}
+
+function rPrXml(st, fit){
+  const sp = fit && fit.sp, sw = fit && fit.w;
+  const f = esc(st.family);
+  return `<w:rPr><w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:cs="${f}" w:eastAsia="${f}"/>${st.bold ? "<w:b/><w:bCs/>" : ""}${st.italic ? "<w:i/><w:iCs/>" : ""}${st.strike ? "<w:strike/>" : ""}${st.color ? `<w:color w:val="${st.color}"/>` : ""}${sp ? `<w:spacing w:val="${sp}"/>` : ""}${sw ? `<w:w w:val="${sw}"/>` : ""}<w:sz w:val="${st.hs}"/><w:szCs w:val="${st.hs}"/>${st.underline ? '<w:u w:val="single"/>' : ""}</w:rPr>`;
+}
+function runXml(run, fit){
+  if (run.tab) return `<w:r>${rPrXml(run.st, 0)}<w:tab/></w:r>`;
+  if (!run.text) return "";
+  const sp = !fit ? 0 : run.fit !== undefined ? run.fit : (run.x1 > run.x0 ? fitSpacing(run.text, run.st, run.x1 - run.x0) : 0);
+  return `<w:r>${rPrXml(run.st, sp)}<w:t xml:space="preserve">${esc(run.text)}</w:t></w:r>`;
+}
+
+// celah lebar di antara teks dalam satu baris → tab dengan posisi persis
+const tabFactor = exact => exact ? 1.0 : 2.5;
+function markTabs(lines, f){
+  for (const l of lines){
+    l.hasTab = false;
+    for (let i = 1; i < l.items.length; i++){
+      const p = l.items[i - 1], q = l.items[i];
+      if (q.x - (p.x + p.w) > Math.min(p.size, q.size) * f) l.hasTab = true;
+    }
+  }
+}
+
+function lineRuns(line, f = 2.5, perWord = false){
   const runs = [], tabs = [];
   let prev = null;
   for (const it of line.items){
-    let text = it.str;
+    let text = it.str, x0 = it.x;
+    const st = { family: it.family, bold: it.bold, italic: it.italic, color: it.color || null, hs: Math.max(2, Math.round(it.size * 2)),
+      underline: !!it.underline, strike: !!it.strike, ocr: !!it.ocr };
     if (prev){
       const gap = it.x - (prev.x + prev.w);
       const sz = Math.min(prev.size, it.size);
-      if (gap > sz * 2.5){ text = "\t" + text.replace(/^\s+/, ""); tabs.push(it.x); }
-      else if (gap > sz * 0.15 && !/\s$/.test(prev.str) && !/^\s/.test(text)) text = " " + text;
+      if (gap > sz * f){ tabs.push(it.x); runs.push({ tab: true, st }); text = text.replace(/^\s+/, ""); }
+      else if (gap > sz * 0.15 && !/\s$/.test(prev.str) && !/^\s/.test(text)){
+        if (perWord){
+          // spasi jadi potongan sendiri: lebarnya disamakan dengan celah asli, kata tidak ikut melebar
+          const sst = { ...st, underline: st.underline && !!prev.underline, strike: st.strike && !!prev.strike };
+          runs.push({ text: " ", st: sst, x0: prev.x + prev.w, x1: it.x, space: true });
+        } else { text = " " + text; x0 = prev.x + prev.w; }
+      }
     }
-    const st = { family: it.family, bold: it.bold, italic: it.italic, color: it.color || null, hs: Math.max(2, Math.round(it.size * 2)),
-      underline: !!it.underline, strike: !!it.strike };
     const last = runs[runs.length - 1];
-    const same = last && ["family", "bold", "italic", "hs", "color", "underline", "strike"].every(k => last.st[k] === st[k]);
-    // spasi di antara dua kata bergaris bawah ikut bergaris; spasi sebelum kata bergaris dari kata biasa tidak
-    if (same) last.text += text;
-    else if (last && /^ /.test(text) && st.underline && !last.st.underline){ last.text += " "; runs.push({ text: text.slice(1), st }); }
-    else runs.push({ text, st });
+    const same = last && !last.tab && !last.space && !perWord && ["family", "bold", "italic", "hs", "color", "underline", "strike"].every(k => last.st[k] === st[k]);
+    if (same && !(perWord && /^ /.test(text))){ last.text += text; last.x1 = it.x + it.w; }
+    // spasi sebelum kata bergaris bawah tidak ikut bergaris
+    else if (last && !last.tab && /^ /.test(text) && st.underline && !last.st.underline){ last.text += " "; last.x1 = it.x; runs.push({ text: text.slice(1), st, x0: it.x, x1: it.x + it.w }); }
+    else runs.push({ text, st, x0, x1: it.x + it.w });
     prev = it;
   }
   return { runs, tabs };
@@ -1130,14 +1349,15 @@ function paraXml(P, M, W, cursor, exact){
     indL = leftX - M.l;
     first = n > 1 ? f.x0 - leftX : 0;
     if (n > 1 && P.lines.slice(0, -1).every(l => maxX1 - l.x1 < 5)){ jc = "both"; indR = (W - M.r) - maxX1; }
-    else { jc = "left"; indR = exact ? -M.r : (W - M.r) - maxX1; }
+    else { jc = "left"; indR = exact ? -M.r - 36 : (W - M.r) - maxX1; }
   }
 
   // isi run
   const parts = [];
   let tabs = [];
   P.lines.forEach((l, i) => {
-    const { runs, tabs: tb } = lineRuns(l);
+    const { runs, tabs: tb } = lineRuns(l, tabFactor(exact), exact);
+    if (exact) fitRuns(runs);
     tabs = tabs.concat(tb);
     if (i > 0){
       if (exact) parts.push("<w:r><w:br/></w:r>");
@@ -1149,12 +1369,12 @@ function paraXml(P, M, W, cursor, exact){
     }
     for (const r of runs){ parts.push(r); parts.lastRun = r; }
   });
-  const body = parts.map(p => typeof p === "string" ? p : runXml(p.text, p.st)).join("");
+  const body = parts.map(p => typeof p === "string" ? p : runXml(p, exact)).join("");
 
   const ppr = [];
   if (tabs.length){
     // baris berkolom (dipisah tab): selalu rata kiri dari posisi aslinya
-    jc = "left"; indL = f.x0 - M.l; indR = -M.r; first = 0;
+    jc = "left"; indL = f.x0 - M.l; indR = -M.r - 36; first = 0;
     ppr.push("<w:tabs>" + [...new Set(tabs.map(x => tw(x - M.l)))].sort((a, b) => a - b).map(p => `<w:tab w:val="left" w:pos="${p}"/>`).join("") + "</w:tabs>");
   }
   ppr.push(`<w:spacing w:before="${tw(before)}" w:after="0" w:line="${tw(L)}" w:lineRule="exact"/>`);
@@ -1171,40 +1391,48 @@ function spacerXml(h, pageBreak){
   return `<w:p><w:pPr>${pageBreak ? "<w:pageBreakBefore/>" : ""}<w:spacing w:before="0" w:after="0" w:line="${Math.max(20, tw(h))}" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr>`;
 }
 
-function cellXml(g, t){
-  const x0 = t.xs[g.c0], x1 = t.xs[g.c1 + 1], y0 = t.ys[g.r0], y1 = t.ys[g.r1 + 1];
+function cellXml(g, t, exact){
+  const x0 = t.xs[g.c0], x1 = t.xs[g.c1 + 1], y0 = t.ys[g.r0];
   const lines = g.lines || [];
-  if (!lines.length) return { xml: spacerXml(1) + "</w:p>", va: "top" };
-  const fl = lines[0], ll = lines[lines.length - 1];
-  const topGap = (fl.y - fl.main) - y0, botGap = y1 - (ll.y + ll.main * 0.25);
-  let va = "top";
-  if (Math.abs(topGap - botGap) < Math.max(3, 0.25 * (topGap + botGap)) && topGap > 1) va = "center";
-  else if (botGap < topGap * 0.5) va = "bottom";
-  let xml = "", prev = null;
+  if (!lines.length) return { xml: spacerXml(1) + "</w:p>", va: "top", bottom: y0 };
+  markTabs(lines, tabFactor(exact));
+  let xml = "", prev = null, cur = y0;
   for (const l of lines){
-    const L = l.main * 1.2;
-    let before = 0;
-    if (!prev){ if (va === "top") before = Math.max(0, l.y - y0 - 0.8 * L); }
-    else before = Math.max(0, (l.y - prev.y) - L);
+    // posisi vertikal dihitung persis dari atas sel
+    const L = prev ? Math.max(l.main, l.y - prev.y) : l.main * 1.2;
+    const before = Math.max(0, l.y - 0.8 * L - cur);
+    cur = cur + before + L;
     const lg = l.x0 - x0, rg = x1 - l.x1;
-    let jc = "left", ind = "";
-    if (Math.abs(lg - rg) < 4 && lg > 2) jc = "center";
-    else if (rg < lg * 0.5 && lg > 8){ jc = "right"; ind = `<w:ind w:right="${tw(Math.max(0, rg))}"/>`; }
-    else ind = `<w:ind w:left="${tw(Math.max(0, lg))}"/>`;
-    const { runs } = lineRuns(l);
-    xml += `<w:p><w:pPr><w:spacing w:before="${tw(before)}" w:after="0" w:line="${tw(L)}" w:lineRule="exact"/>${ind}<w:jc w:val="${jc}"/></w:pPr>${runs.map(r => runXml(r.text.replace(/\t/g, " "), r.st)).join("")}</w:p>`;
+    const { runs, tabs } = lineRuns(l, tabFactor(exact), true);
+    fitRuns(runs);
+    let jc = "left", ind = "", tb = "";
+    if (tabs.length){
+      ind = `<w:ind w:left="${tw(Math.max(0, lg))}" w:right="-${tw(4)}"/>`;
+      tb = "<w:tabs>" + [...new Set(tabs.map(x => tw(x - x0)))].sort((a, b) => a - b).map(p => `<w:tab w:val="left" w:pos="${p}"/>`).join("") + "</w:tabs>";
+    }
+    else if (Math.abs(lg - rg) < 3 && lg > 2) jc = "center";
+    else if (rg < lg * 0.5 && lg > 8){ jc = "right"; ind = `<w:ind w:left="-${tw(4)}" w:right="${tw(Math.max(0, rg))}"/>`; }
+    else ind = `<w:ind w:left="${tw(Math.max(0, lg))}" w:right="-${tw(4)}"/>`;
+    xml += `<w:p><w:pPr>${tb}<w:spacing w:before="${tw(before)}" w:after="0" w:line="${tw(L)}" w:lineRule="exact"/>${ind}<w:jc w:val="${jc}"/></w:pPr>${runs.map(r => runXml(r, true)).join("")}</w:p>`;
     prev = l;
   }
-  return { xml, va };
+  return { xml, va: "top", bottom: cur - 0.2 * (prev.main * 1.2) + prev.main * 0.22 };
 }
 
-function tableXml(t, M){
+function tableXml(t, M, exact){
   const cols = []; for (let c = 0; c < t.C; c++) cols.push(t.xs[c + 1] - t.xs[c]);
   const bd = on => on ? `w:val="single" w:sz="${t.sz}" w:space="0" w:color="${t.color}"` : `w:val="nil"`;
   let x = `<w:tbl><w:tblPr><w:tblW w:w="${tw(t.x1 - t.x0)}" w:type="dxa"/><w:tblInd w:w="${tw(t.x0 - M.l)}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid>${cols.map(c => `<w:gridCol w:w="${tw(c)}"/>`).join("")}</w:tblGrid>`;
   const cache = new Map();
+  const content = gi => { if (!cache.has(gi)) cache.set(gi, cellXml(t.groups[gi], t, exact)); return cache.get(gi); };
   for (let r = 0; r < t.R; r++){
-    x += `<w:tr><w:trPr><w:trHeight w:val="${tw(t.ys[r + 1] - t.ys[r])}" w:hRule="atLeast"/><w:cantSplit/></w:trPr>`;
+    // tinggi baris dikunci persis, kecuali isi sel memang lebih tinggi dari barisnya
+    let fits = true;
+    for (let c = 0; c < t.C; c++){
+      const gi = t.cellG[r * t.C + c], g = t.groups[gi];
+      if (g.r1 === r && content(gi).bottom > t.ys[r + 1] + 1.5) fits = false;
+    }
+    x += `<w:tr><w:trPr><w:trHeight w:val="${tw(t.ys[r + 1] - t.ys[r])}" w:hRule="${fits ? "exact" : "atLeast"}"/><w:cantSplit/></w:trPr>`;
     for (let c = 0; c < t.C; c++){
       const gi = t.cellG[r * t.C + c], g = t.groups[gi];
       if (c !== g.c0) continue;
@@ -1214,11 +1442,9 @@ function tableXml(t, M){
       const top = r === g.r0 ? t.hE[r][g.c0] : false;
       const bottom = r === g.r1 ? t.hE[r + 1][g.c0] : false;
       const left = t.vE[r][g.c0], right = t.vE[r][g.c1 + 1];
-      let content;
-      if (!cache.has(gi)) cache.set(gi, cellXml(g, t));
-      content = cache.get(gi);
-      const inner = r === g.r0 ? content.xml : spacerXml(1) + "</w:p>";
-      x += `<w:tc><w:tcPr><w:tcW w:w="${tw(width)}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ""}${vm}<w:tcBorders><w:top ${bd(top)}/><w:left ${bd(left)}/><w:bottom ${bd(bottom)}/><w:right ${bd(right)}/></w:tcBorders>${g.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${g.fill}"/>` : ""}<w:vAlign w:val="${content.va}"/></w:tcPr>${inner}</w:tc>`;
+      const cx = content(gi);
+      const inner = r === g.r0 ? cx.xml : spacerXml(1) + "</w:p>";
+      x += `<w:tc><w:tcPr><w:tcW w:w="${tw(width)}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ""}${vm}<w:tcBorders><w:top ${bd(top)}/><w:left ${bd(left)}/><w:bottom ${bd(bottom)}/><w:right ${bd(right)}/></w:tcBorders>${g.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${g.fill}"/>` : ""}<w:vAlign w:val="${cx.va}"/></w:tcPr>${inner}</w:tc>`;
     }
     x += "</w:tr>";
   }
@@ -1254,6 +1480,8 @@ function buildDocxParts(pages, opts){
     }).join("");
     body.push(spacerXml(1, pi > 0) + anchors + "</w:p>");
     let cursor = M.t + 1;
+    markTabs(p.lines, tabFactor(exact));
+    __ocrScale = ocrPageScale(p.lines.concat(...p.tables.map(t => t.groups.flatMap(g => g.lines || []))));
     const paras = groupParagraphs(p.lines, M, p.W, p.tables.map(t => t.y0));
     const els = paras.map(P => ({ k: "p", top: P.lines[0].y - P.lines[0].main, P }))
       .concat(p.tables.map(t => ({ k: "t", top: t.y0, t })))
@@ -1263,7 +1491,7 @@ function buildDocxParts(pages, opts){
       if (e.k === "t"){
         const gap = e.t.y0 - cursor;
         if (gap >= 1 || lastWasTable){ const hh = Math.max(1, gap); body.push(spacerXml(hh) + "</w:p>"); cursor += hh; }
-        body.push(tableXml(e.t, M));
+        body.push(tableXml(e.t, M, exact));
         cursor = Math.max(cursor, e.t.y1);
         lastWasTable = true;
       } else {
